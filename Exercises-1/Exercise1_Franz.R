@@ -2,7 +2,9 @@ library(tidyverse)
 library(FNN)
 library(mosaic)
 
-# Exercise 1
+#############
+# Exercise 1#
+#############
 
 abia = read.csv('C:/Users/Nathan/Documents/UT Courses/3. Spring 2019/Data Mining, Statistical Learning/Homework/Exercises 1/ABIA.csv')
 
@@ -45,8 +47,9 @@ ggplot(data = abia_sum4) +
   geom_path(mapping = aes(x=CRSDepTime, y=ypred_lm), color='red', size=1.2)
 
 
-
-# Exercise 2
+#############
+# Exercise 2#
+#############
 
 sclass = read.csv('C:/Users/Nathan/Documents/UT Courses/3. Spring 2019/Data Mining, Statistical Learning/Homework/Exercises 1/sclass.csv')
 
