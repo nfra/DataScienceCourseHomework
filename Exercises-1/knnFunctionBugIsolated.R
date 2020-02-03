@@ -25,6 +25,9 @@ x_test = select(D_test, mileage)
 y_test = select(D_test, price)
 
 # Fit KNN for k = 2
-# NOTE: KNN bugs out for k-value 2
+
 knn2 = knn.reg(train = X_train, test = x_test, y = y_train, k=2)
+
+# NOTE: KNN bugs out for k-value 2 with following error:
+#"Error in as.matrix(x)[i] : subscript out of bounds"
 
