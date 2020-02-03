@@ -1,7 +1,7 @@
 library(tidyverse)
 library(FNN)
 
-sclass = read.csv('C:/Users/Nathan/Documents/UT Courses/3. Spring 2019/Data Mining, Statistical Learning/Homework/DataScienceCourseHomework/Exercises-1/sclass.csv')
+sclass = read.csv('sclass.csv')
 
 # Focus on trim level 350
 sclass = subset(sclass, trim == '350')
