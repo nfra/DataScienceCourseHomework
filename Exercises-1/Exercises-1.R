@@ -6,7 +6,8 @@ library(mosaic)
 # Exercise 1#
 #############
 
-abia = read.csv('C:/Users/Nathan/Documents/UT Courses/3. Spring 2019/Data Mining, Statistical Learning/Homework/Exercises 1/ABIA.csv')
+#Change to simple filepath - test for Github - if having trouble with this line check your working directory by typing 'getwd()' in the console
+abia = read.csv('ABIA.csv')
 
 abia_well_behaved = subset(abia, DepDelay != "NA")
 
