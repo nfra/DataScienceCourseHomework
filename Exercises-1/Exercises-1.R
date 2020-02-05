@@ -1,7 +1,7 @@
+library(Hmisc)
 library(tidyverse)
 library(FNN)
 library(mosaic)
-library(Hmisc)
 
 #############
 # Exercise 1#
@@ -10,6 +10,32 @@ library(Hmisc)
 abia = read.csv('ABIA.csv')
 
 abia_well_behaved = subset(abia, DepDelay != "NA")
+
+abia_not_well_behaved <- subset(abia, is.na(abia$DepDelay))
+describe(abia_not_well_behaved)
+
+#Maybe we should look at something besides the mean to avoid crazy values
+#It looks like all the flights that were missing delays were cancelled, but I'm not sure we want to exclude those from analysis
+abia_cr<- abia
+abia_cr$DepDelay[abia_cr$Cancelled == 1] <- 10000
+abia_crd <- subset(abia_cr, Dest != 'AUS')
+abia_crd$LongWait <- (abia_crd$DepDelay >= 15)
+describe(abia_crd)
+
+abia_sumbydest = abia_crd  %>%
+  group_by(Dest) %>%
+  summarize(median.DepDelay = median(DepDelay), FlightCount = length(Dest), Prob_LW = mean(LongWait))
+
+#Filter groups with not enough data
+abia_sumbydest <- subset(abia_sum5, FlightCount >= 50)
+view(abia_sumbydest)
+
+#Import Airport codes
+codes = read.csv('airport-codes.csv')
+codes_f = codes[codes$iata_code %in% abia_sumbydest$Dest,]
+view(codes_f)
+
+###gonna try to figure out ggmap after lunch##
 
 abia_sum = abia_well_behaved %>%
   group_by(Month) %>%
@@ -49,8 +75,10 @@ ggplot(data = abia_sum4) +
 
 
 #############
-# Exercise 2#
+# Exercise 2# 
 #############
+
+#I went to office hours and Dr. Scott says we don't need to worry about K=2 problem
 
 sclass = read.csv('sclass.csv')
 

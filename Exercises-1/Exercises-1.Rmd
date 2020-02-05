@@ -11,9 +11,11 @@ knitr::opts_chunk$set(echo = TRUE)
 ##Data Visualization: Flights at ABIA
 
 
+
 ##K-Nearest Neighbors Model: Car Price
 
 
+##Below includes basic template instructions 
 
 ## GitHub Documents
 
