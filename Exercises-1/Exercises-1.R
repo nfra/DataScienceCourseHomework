@@ -1,12 +1,12 @@
 library(tidyverse)
 library(FNN)
 library(mosaic)
+library(Hmisc)
 
 #############
 # Exercise 1#
 #############
 
-#Change to simple filepath - test for Github - if having trouble with this line check your working directory by typing 'getwd()' in the console
 abia = read.csv('ABIA.csv')
 
 abia_well_behaved = subset(abia, DepDelay != "NA")
@@ -52,7 +52,7 @@ ggplot(data = abia_sum4) +
 # Exercise 2#
 #############
 
-sclass = read.csv('C:/Users/Nathan/Documents/UT Courses/3. Spring 2019/Data Mining, Statistical Learning/Homework/Exercises 1/sclass.csv')
+sclass = read.csv('sclass.csv')
 
 # Focus on 2 trim levels: 350 and 65 AMG
 
@@ -166,3 +166,4 @@ p_test = ggplot(data = D_test_65AMG) +
   theme_bw(base_size=18) + 
   geom_path(aes(x = mileage, y = knn_optimal_65AMG$pred), color='red')
 p_test
+
