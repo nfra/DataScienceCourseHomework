@@ -2,11 +2,14 @@ library(Hmisc)
 library(tidyverse)
 library(FNN)
 library(mosaic)
+library(ggmap)
+library(maps)
+library(mapdata)
 
 #############
 # Exercise 1#
 #############
-
+#setwd('C:/Users/imcbr/Box Sync/UT MA Economics (2019-)/1-Spring 2020/Data Mining & Statistical Learning - ECO 395M/NathanRepo/DataScienceCourseHomework/Exercises-1')
 abia = read.csv('ABIA.csv')
 
 abia_well_behaved = subset(abia, DepDelay != "NA")
@@ -27,15 +30,45 @@ abia_sumbydest = abia_crd  %>%
   summarize(median.DepDelay = median(DepDelay), FlightCount = length(Dest), Prob_LW = mean(LongWait))
 
 #Filter groups with not enough data
-abia_sumbydest <- subset(abia_sum5, FlightCount >= 50)
+abia_sumbydest <- subset(abia_sumbydest, FlightCount >= 50)
 view(abia_sumbydest)
 
 #Import Airport codes
 codes = read.csv('airport-codes.csv')
-codes_f = codes[codes$iata_code %in% abia_sumbydest$Dest,]
-view(codes_f)
+codes = separate(codes,'coordinates', c('Lat','Long') , sep=',' , remove=TRUE, convert=TRUE)
 
-###gonna try to figure out ggmap after lunch##
+codes_f = codes[codes$iata_code %in% abia_sumbydest$Dest,]
+codes_f = separate(codes_f,'iso_region', c('CountryCode','State') , sep='-' , remove=TRUE, convert=TRUE)
+codes_f$Dest = codes_f$iata_code
+
+#merge to grouped data
+abia_merged = merge(abia_sumbydest, codes_f, by='Dest')
+view(abia_merged)
+
+##map stuff
+usa <- map_data('usa')
+states <- map_data('state')
+
+ggUSA <- 
+  ggplot() + 
+  geom_polygon(data = states, aes(x=long, y = lat, group = group), color = 'black', fill = 'grey') + 
+  coord_fixed(1.3) + 
+  guides(fill = FALSE)
+
+ggUSA + 
+  #theme_nothing() +
+  geom_point(data = abia_merged, aes(x = Long, y = Lat, color = Prob_LW), size = 2) +
+  scale_color_gradient(low = 'green', high = 'red',guide = 'colorbar') 
+  
+  geom_point(data = labs, aes(x = long, y = lat), color = "yellow", size = 4) +
+  coord_fixed(1.3)
+
+##ggmap stuff - probably won't use on final version
+map.US <- get_map("United States", zoom = 4)
+map.US_3 <- get_map(c(left = -125, bottom = 24, right = -66, top = 50), source = 'google')
+ggmap(map.US_3)
+
+
 
 abia_sum = abia_well_behaved %>%
   group_by(Month) %>%
