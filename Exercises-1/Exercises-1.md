@@ -1,6 +1,14 @@
 Exercises 1
 ================
 
+## Data Visualization: Flights at ABIA
+
+![](Exercises-1_files/figure-gfm/abia_plots-1.png)<!-- -->
+
+## K-Nearest Neighbors Model: Car Price
+
+## Below includes basic template instructions
+
 ## GitHub Documents
 
 This is an R Markdown format used for publishing markdown documents to

@@ -8,14 +8,84 @@ output: github_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-##Data Visualization: Flights at ABIA
+## Data Visualization: Flights at ABIA
+
+```{r abia_background, include=FALSE}
+
+library(Hmisc)
+library(tidyverse)
+library(FNN)
+library(mosaic)
+library(maps)
+library(mapdata)
+
+#read data
+abia = read.csv('ABIA.csv')
+
+#clean & subset
+abia_cr<- abia
+abia_cr$DepDelay[abia_cr$Cancelled == 1] <- 10000
+
+abia_crd <- subset(abia_cr, Dest != 'AUS')
+abia_crd$LongWait <- (abia_crd$DepDelay >= 20)
+
+abia_sumbydest = abia_crd  %>%
+  group_by(Dest) %>%
+  summarize(median.DepDelay = median(DepDelay), FlightCount = length(Dest), Prob_LW = mean(LongWait))
+
+#Filter groups with not enough data
+abia_sumbydest <- subset(abia_sumbydest, FlightCount >= 50)
+abia_sumbydest$Prob_LW = abia_sumbydest$Prob_LW * 100
+
+#Import Airport codes
+codes = read.csv('airport-codes.csv')
+codes = separate(codes,'coordinates', c('Lat','Long') , sep=',' , remove=TRUE, convert=TRUE)
+
+#filter codes & clean
+codes_f = codes[codes$iata_code %in% abia_sumbydest$Dest,]
+codes_f = separate(codes_f,'iso_region', c('CountryCode','State') , sep='-' , remove=TRUE, convert=TRUE)
+codes_f$Dest = codes_f$iata_code
+
+#merge to grouped data
+abia_merged = merge(abia_sumbydest, codes_f, by='Dest')
+
+##map data
+usa <- map_data('usa')
+states <- map_data('state')
+
+```
+
+```{r abia_plots, echo = FALSE}
+
+ggUSA <- 
+  ggplot() + 
+  geom_polygon(data = states, aes(x=long, y = lat, group = group), color = 'white', fill = 'light blue') + 
+  coord_fixed(1.3) 
+
+ggUSA + 
+  geom_point(data = abia_merged, aes(x = Long, y = Lat, fill = Prob_LW), shape = 23, size = 3, stroke = 1.75, alpha = .75) +
+  geom_text(data = abia_merged, aes(x = Long, y = Lat, label = abia_merged$Dest ), check_overlap = TRUE, nudge_x = -2, size = 4) + 
+  scale_fill_gradient(low = 'green', high = 'red',guide = 'colourbar') +
+  guides(fill = guide_colorbar(title = '')) +
+  ggtitle('Departures - Percent Chance of a Delay Greater Than 20 Minutes by Destination') + 
+  theme(
+    axis.text = element_blank(),
+    axis.line = element_blank(),
+    axis.ticks = element_blank(),
+    panel.border = element_blank(),
+    panel.grid = element_blank(),
+    panel.background = element_blank(),
+    axis.title = element_blank(),
+    plot.title = element_text(hjust = 0)
+  ) 
+
+```
 
 
+## K-Nearest Neighbors Model: Car Price
 
-##K-Nearest Neighbors Model: Car Price
 
-
-##Below includes basic template instructions 
+## Below includes basic template instructions 
 
 ## GitHub Documents
 

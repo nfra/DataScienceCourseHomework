@@ -2,7 +2,6 @@ library(Hmisc)
 library(tidyverse)
 library(FNN)
 library(mosaic)
-library(ggmap)
 library(maps)
 library(mapdata)
 
@@ -15,15 +14,13 @@ abia = read.csv('ABIA.csv')
 abia_well_behaved = subset(abia, DepDelay != "NA")
 
 abia_not_well_behaved <- subset(abia, is.na(abia$DepDelay))
-describe(abia_not_well_behaved)
 
 #Maybe we should look at something besides the mean to avoid crazy values
 #It looks like all the flights that were missing delays were cancelled, but I'm not sure we want to exclude those from analysis
 abia_cr<- abia
 abia_cr$DepDelay[abia_cr$Cancelled == 1] <- 10000
 abia_crd <- subset(abia_cr, Dest != 'AUS')
-abia_crd$LongWait <- (abia_crd$DepDelay >= 15)
-describe(abia_crd)
+abia_crd$LongWait <- (abia_crd$DepDelay >= 20)
 
 abia_sumbydest = abia_crd  %>%
   group_by(Dest) %>%
@@ -31,7 +28,7 @@ abia_sumbydest = abia_crd  %>%
 
 #Filter groups with not enough data
 abia_sumbydest <- subset(abia_sumbydest, FlightCount >= 50)
-view(abia_sumbydest)
+abia_sumbydest$Prob_LW = abia_sumbydest$Prob_LW * 100
 
 #Import Airport codes
 codes = read.csv('airport-codes.csv')
@@ -43,7 +40,6 @@ codes_f$Dest = codes_f$iata_code
 
 #merge to grouped data
 abia_merged = merge(abia_sumbydest, codes_f, by='Dest')
-view(abia_merged)
 
 ##map stuff
 usa <- map_data('usa')
@@ -51,23 +47,27 @@ states <- map_data('state')
 
 ggUSA <- 
   ggplot() + 
-  geom_polygon(data = states, aes(x=long, y = lat, group = group), color = 'black', fill = 'grey') + 
-  coord_fixed(1.3) + 
-  guides(fill = FALSE)
+  geom_polygon(data = states, aes(x=long, y = lat, group = group), color = 'white', fill = 'light blue') + 
+  coord_fixed(1.3) 
 
 ggUSA + 
-  #theme_nothing() +
-  geom_point(data = abia_merged, aes(x = Long, y = Lat, color = Prob_LW), size = 2) +
-  scale_color_gradient(low = 'green', high = 'red',guide = 'colorbar') 
-  
-  geom_point(data = labs, aes(x = long, y = lat), color = "yellow", size = 4) +
-  coord_fixed(1.3)
+  geom_point(data = abia_merged, aes(x = Long, y = Lat, fill = Prob_LW), shape = 23, size = 3, stroke = 1.75, alpha = .75) +
+  geom_text(data = abia_merged, aes(x = Long, y = Lat, label = abia_merged$Dest ), check_overlap = TRUE, nudge_x = -2, size = 4) + 
+  scale_fill_gradient(low = 'green', high = 'red',guide = 'colourbar') +
+  guides(fill = guide_colorbar(title = '')) +
+  ggtitle('Departures - Percent Chance of a Delay Greater Than 20 Minutes by Destination') + 
+  theme(
+    axis.text = element_blank(),
+    axis.line = element_blank(),
+    axis.ticks = element_blank(),
+    panel.border = element_blank(),
+    panel.grid = element_blank(),
+    panel.background = element_blank(),
+    axis.title = element_blank(),
+    plot.title = element_text(hjust = .5)
+  ) 
 
-##ggmap stuff - probably won't use on final version
-map.US <- get_map("United States", zoom = 4)
-map.US_3 <- get_map(c(left = -125, bottom = 24, right = -66, top = 50), source = 'google')
-ggmap(map.US_3)
-
+####
 
 
 abia_sum = abia_well_behaved %>%
