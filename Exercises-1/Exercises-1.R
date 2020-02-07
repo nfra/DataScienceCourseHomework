@@ -158,11 +158,11 @@ for(i in 3:N_train_350) {
 }
 
 # Plot RMSE vs k-value (with log x-axis) with optimal k-value marked
-knn_rmse_plot = ggplot(data = knn_rmse_350) +
+knn_rmse_plot_350 = ggplot(data = knn_rmse_350) +
   geom_path(aes(x = k, y = rmse), color='black')+
   geom_vline(xintercept = knn_rmse_350$k[which.min(knn_rmse_350$rmse)], color = 'red')+
   scale_x_continuous(trans='log10')
-knn_rmse_plot
+knn_rmse_plot_350
 
 # Plot optimal k-value KNN with test data
 optimal_ind_350 = knn_rmse_350$k[which.min(knn_rmse_350$rmse)]
@@ -212,11 +212,11 @@ for(i in 3:N_train_65AMG) {
 }
 
 # Plot RMSE vs k-value with log x-axis
-knn_rmse_plot = ggplot(data = knn_rmse_65AMG) +
+knn_rmse_plot_65AMG = ggplot(data = knn_rmse_65AMG) +
   geom_path(aes(x = k, y = rmse), color='black') + 
   geom_vline(xintercept = knn_rmse_65AMG$k[which.min(knn_rmse_65AMG$rmse)], color = 'red') +
   scale_x_continuous(trans='log10')
-knn_rmse_plot
+knn_rmse_plot_65AMG
 
 # Plot optimal k-value KNN with test data
 optimal_ind_65AMG = knn_rmse_65AMG$k[which.min(knn_rmse_65AMG$rmse)]
