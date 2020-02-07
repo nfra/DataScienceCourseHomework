@@ -1,11 +1,23 @@
 Exercises 1
 ================
+Nathan Franz and Ian McBride
 
 ## Data Visualization: Flights at ABIA
 
-![](Exercises-1_files/figure-gfm/dep_plots-1.png)<!-- -->
+Our analysis looks at the probability that departures out of Austin will
+be delayed by more than 20 minutes, and uses this metric to highlight
+the the 10 worst destinations. Note that, for the purposes of these
+figures, cancellations also fall into the “delayed by more than 20
+minutes” category.
 
-![](Exercises-1_files/figure-gfm/arr_plots-1.png)<!-- -->
+![](Exercises-1_files/figure-gfm/dep_plots-1.png)<!-- -->![](Exercises-1_files/figure-gfm/dep_plots-2.png)<!-- -->
+
+Similarly, we also used the probability that arrivals into Austin would
+be delayed by more than 20 minutes to determine the 10 worst origination
+airports. Note that, for the purposes of these figures, cancellations
+and diversions also fall into the “delayed by more than 20 minutes”
+category.
+![](Exercises-1_files/figure-gfm/arr_plots-1.png)<!-- -->![](Exercises-1_files/figure-gfm/arr_plots-2.png)<!-- -->
 
 ## K-Nearest Neighbors Model: Car Price
 
@@ -24,8 +36,7 @@ line.
 
 Each of the red lines on the graphs above represents the KNN model that
 minimizes the RMSE. The graphs that follow show those KNN models plotted
-against the test data from which the RMSE data was
-calculated.
+against the test data from which the RMSE data was calculated.
 
 ![](Exercises-1_files/figure-gfm/optimal_knn_models-1.png)<!-- -->![](Exercises-1_files/figure-gfm/optimal_knn_models-2.png)<!-- -->
 

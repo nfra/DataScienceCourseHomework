@@ -1,5 +1,6 @@
 ---
 title: "Exercises 1"
+author: "Nathan Franz and Ian McBride"
 output: github_document
 
 ---
@@ -10,6 +11,7 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ## Data Visualization: Flights at ABIA
 
+Our analysis looks at the probability that departures out of Austin will be delayed by more than 20 minutes, and uses this metric to highlight the the 10 worst destinations. Note that, for the purposes of these figures, cancellations also fall into the "delayed by more than 20 minutes" category. 
 ```{r abia_background, include=FALSE}
 
 library(Hmisc)
@@ -79,7 +81,6 @@ usa <- map_data('usa')
 states <- map_data('state')
 
 ```
-
 ```{r dep_plots, echo = FALSE}
 
 ggUSA <- 
@@ -90,8 +91,8 @@ ggUSA <-
 ggUSA + 
   geom_point(data = abia_merged9, aes(x = Long, y = Lat, fill = Prob_LW), shape = 23, size = 5, stroke = 1.75, alpha = .75) +
   geom_point(data = abia_mergedJFK, aes(x = Long+.5, y = Lat, fill = Prob_LW), shape = 23, size = 5, stroke = 1.75, alpha = .75) +
-  geom_text(data = abia_merged9, aes(x = Long, y = Lat, label = abia_merged9$Dest ), check_overlap = FALSE, nudge_x = -3.6, size = 5) + 
-  geom_text(data = abia_mergedJFK, aes(x = Long, y = Lat, label = abia_mergedJFK$Dest ), check_overlap = FALSE, nudge_x = +4.1, size = 5) + 
+  geom_text(data = abia_merged9, aes(x = Long, y = Lat, label = abia_merged9$Dest ), check_overlap = FALSE, nudge_x = -3.6, size = 4.5) + 
+  geom_text(data = abia_mergedJFK, aes(x = Long, y = Lat, label = abia_mergedJFK$Dest ), check_overlap = FALSE, nudge_x = +4.1, size = 4.5) + 
   scale_fill_gradient(low = 'yellow', high = 'red',guide = 'colourbar') +
   guides(fill = guide_colorbar(title = '')) +
   ggtitle('10 Worst Destinations for Flights out of Austin', subtitle = 'Percent Chance of a Departure Delay Greater Than 20 Minutes by Destination') + 
@@ -107,8 +108,36 @@ ggUSA +
     plot.subtitle = element_text(hjust = .5)
   ) 
 
+abia_merged10$Dest <- factor(abia_merged10$Dest) %>%
+  fct_reorder(abia_merged10$Prob_LW)
+
+abia_merged10$BarLabel <- paste(abia_merged10$iata_code, ' (', abia_merged10$municipality,'): ', round(abia_merged10$Prob_LW, digits = 2), '%', sep = '') 
+
+dep_bar <-
+  ggplot() + 
+  geom_col(data = abia_merged10, aes(x = Dest, y = Prob_LW, fill = Prob_LW), alpha = .75) + 
+  geom_text(data = abia_merged10, aes(x = Dest, y = 0.5, label = BarLabel), check_overlap = FALSE, hjust = 0) + 
+  scale_fill_gradient(low = 'yellow', high = 'red') +
+  guides(fill = FALSE) + 
+  ggtitle('10 Worst Destinations for Flights out of Austin: Bar Detail', subtitle = 'Percent Chance of a Departure Delay Greater Than 20 Minutes by Destination') +
+  theme(
+    axis.text = element_blank(),
+    axis.line = element_blank(),
+    axis.ticks = element_blank(),
+    panel.border = element_blank(),
+    panel.grid = element_blank(),
+    panel.background = element_blank(),
+    axis.title = element_blank(),
+    plot.title = element_text(hjust = .5),
+    plot.subtitle = element_text(hjust = .5)
+  ) +
+  coord_flip()
+
+dep_bar
+
 ```
 
+Similarly, we also used the probability that arrivals into Austin would be delayed by more than 20 minutes to determine the 10 worst origination airports. Note that, for the purposes of these figures, cancellations and diversions also fall into the "delayed by more than 20 minutes" category.
 ```{r arr_plots, echo= FALSE}
 
 ggUSA_a <- 
@@ -120,9 +149,9 @@ ggUSA_a +
   geom_point(data = abia_merged8a, aes(x = Long, y = Lat, fill = Prob_LW), shape = 23, size = 5, stroke = 1.75, alpha = .75) +
   geom_point(data = abia_mergedJFKa, aes(x = Long+.5, y = Lat, fill = Prob_LW), shape = 23, size = 5, stroke = 1.75, alpha = .75) +
   geom_point(data = abia_mergedRDUa, aes(x = Long, y = Lat, fill = Prob_LW), shape = 23, size = 5, stroke = 1.75, alpha = .75) +
-  geom_text(data = abia_merged8a, aes(x = Long, y = Lat, label = abia_merged8a$Origin ), check_overlap = FALSE, nudge_x = -3.4, size = 5) + 
-  geom_text(data = abia_mergedJFKa, aes(x = Long, y = Lat, label = abia_mergedJFKa$Origin ), check_overlap = FALSE, nudge_x = +3.9, size = 5) +
-  geom_text(data = abia_mergedRDUa, aes(x = Long, y = Lat, label = abia_mergedRDUa$Origin ), check_overlap = FALSE, nudge_x = +3.4, size = 5) +
+  geom_text(data = abia_merged8a, aes(x = Long, y = Lat, label = abia_merged8a$Origin ), check_overlap = FALSE, nudge_x = -3.4, size = 4.5) + 
+  geom_text(data = abia_mergedJFKa, aes(x = Long, y = Lat, label = abia_mergedJFKa$Origin ), check_overlap = FALSE, nudge_x = +3.9, size = 4.5) +
+  geom_text(data = abia_mergedRDUa, aes(x = Long, y = Lat, label = abia_mergedRDUa$Origin ), check_overlap = FALSE, nudge_x = +3.4, size = 4.5) +
   scale_fill_gradient(low = 'yellow', high = 'red',guide = 'colourbar') +
   guides(fill = guide_colorbar(title = '')) +
   ggtitle('10 Worst Origination Airports for Flights into Austin', subtitle = 'Percent Chance of an Arrival Delay Greater Than 20 Minutes by Origin') + 
@@ -138,9 +167,32 @@ ggUSA_a +
     plot.subtitle = element_text(hjust = .5)
   ) 
 
+abia_merged10a$Origin <- factor(abia_merged10a$Origin) %>%
+  fct_reorder(abia_merged10a$Prob_LW)
 
+abia_merged10a$BarLabel <- paste(abia_merged10a$iata_code, ' (', abia_merged10a$municipality,'): ', round(abia_merged10a$Prob_LW, digits = 2), '%', sep = '') 
 
+arr_bar <-
+  ggplot() + 
+  geom_col(data = abia_merged10a, aes(x = Origin, y = Prob_LW, fill = Prob_LW), alpha = .75) + 
+  geom_text(data = abia_merged10a, aes(x = Origin, y = 0.5, label = BarLabel), check_overlap = FALSE, hjust = 0) + 
+  scale_fill_gradient(low = 'yellow', high = 'red') +
+  guides(fill = FALSE) + 
+  ggtitle('10 Worst Origination Airports for Flights into Austin: Bar Detail', subtitle = 'Percent Chance of an Arrival Delay Greater Than 20 Minutes by Origin') +
+  theme(
+    axis.text = element_blank(),
+    axis.line = element_blank(),
+    axis.ticks = element_blank(),
+    panel.border = element_blank(),
+    panel.grid = element_blank(),
+    panel.background = element_blank(),
+    axis.title = element_blank(),
+    plot.title = element_text(hjust = .5),
+    plot.subtitle = element_text(hjust = .5)
+  ) +
+  coord_flip()
 
+arr_bar
 
 ```
 
