@@ -3,7 +3,9 @@ Exercises 1
 
 ## Data Visualization: Flights at ABIA
 
-![](Exercises-1_files/figure-gfm/abia_plots-1.png)<!-- -->
+![](Exercises-1_files/figure-gfm/dep_plots-1.png)<!-- -->
+
+![](Exercises-1_files/figure-gfm/arr_plots-1.png)<!-- -->
 
 ## K-Nearest Neighbors Model: Car Price
 

@@ -20,34 +20,59 @@ library(maps)
 library(mapdata)
 
 #read data
-abia = read.csv('ABIA.csv')
+abia <- read.csv('ABIA.csv')
 
 #clean & subset
-abia_cr<- abia
-abia_cr$DepDelay[abia_cr$Cancelled == 1] <- 10000
-
-abia_crd <- subset(abia_cr, Dest != 'AUS')
+abia_crd <- subset(abia, Dest != 'AUS')
+abia_crd$DepDelay[abia_crd$Cancelled == 1] <- 10000
 abia_crd$LongWait <- (abia_crd$DepDelay >= 20)
 
-abia_sumbydest = abia_crd  %>%
+abia_cra <- subset(abia, Dest == 'AUS')
+abia_cra$ArrDelay[abia_cra$Cancelled == 1] <- 10000
+abia_cra$ArrDelay[abia_cra$Diverted == 1] <- 10000
+abia_cra$LongWait <- (abia_cra$ArrDelay >= 20)
+
+abia_sumbydest <- abia_crd  %>%
   group_by(Dest) %>%
   summarize(median.DepDelay = median(DepDelay), FlightCount = length(Dest), Prob_LW = mean(LongWait))
 
+abia_sumbyorig <- abia_cra  %>%
+  group_by(Origin) %>%
+  summarize(median.ArrDelay = median(ArrDelay), FlightCount = length(Origin), Prob_LW = mean(LongWait))
+
 #Filter groups with not enough data
 abia_sumbydest <- subset(abia_sumbydest, FlightCount >= 50)
-abia_sumbydest$Prob_LW = abia_sumbydest$Prob_LW * 100
+abia_sumbydest$Prob_LW <- abia_sumbydest$Prob_LW * 100
+
+abia_sumbyorig <- subset(abia_sumbyorig, FlightCount >= 50)
+abia_sumbyorig$Prob_LW <- abia_sumbyorig$Prob_LW * 100
 
 #Import Airport codes
-codes = read.csv('airport-codes.csv')
-codes = separate(codes,'coordinates', c('Lat','Long') , sep=',' , remove=TRUE, convert=TRUE)
+codes <- read.csv('airport-codes.csv')
+codes <- separate(codes,'coordinates', c('Lat','Long') , sep=',' , remove=TRUE, convert=TRUE)
 
 #filter codes & clean
-codes_f = codes[codes$iata_code %in% abia_sumbydest$Dest,]
-codes_f = separate(codes_f,'iso_region', c('CountryCode','State') , sep='-' , remove=TRUE, convert=TRUE)
-codes_f$Dest = codes_f$iata_code
+codes_f <- codes[codes$iata_code %in% abia_sumbydest$Dest,]
+codes_f <- separate(codes_f,'iso_region', c('CountryCode','State') , sep='-' , remove=TRUE, convert=TRUE)
+codes_f$Dest <- codes_f$iata_code
+
+codes_fa <- codes[codes$iata_code %in% abia_sumbyorig$Origin,]
+codes_fa <- separate(codes_fa,'iso_region', c('CountryCode','State') , sep='-' , remove=TRUE, convert=TRUE)
+codes_fa$Origin <- codes_fa$iata_code
 
 #merge to grouped data
-abia_merged = merge(abia_sumbydest, codes_f, by='Dest')
+abia_merged <- merge(abia_sumbydest, codes_f, by='Dest')
+abia_merged10 <- abia_merged[with(abia_merged,order(-Prob_LW)),]
+abia_merged10 <- abia_merged10[1:10,]
+abia_merged9 <- abia_merged10[abia_merged10$Dest != 'JFK',]
+abia_mergedJFK <- abia_merged10[abia_merged10$Dest == 'JFK',]
+
+abia_mergeda <- merge(abia_sumbyorig, codes_fa, by='Origin')
+abia_merged10a <- abia_mergeda[with(abia_mergeda,order(-Prob_LW)),]
+abia_merged10a <- abia_merged10a[1:10,]
+abia_merged8a <- abia_merged10a[!(abia_merged10a$Origin %in% c('JFK','RDU')),]
+abia_mergedJFKa <- abia_merged10a[abia_merged10a$Origin == 'JFK',]
+abia_mergedRDUa <- abia_merged10a[abia_merged10a$Origin == 'RDU',]
 
 ##map data
 usa <- map_data('usa')
@@ -55,7 +80,7 @@ states <- map_data('state')
 
 ```
 
-```{r abia_plots, echo = FALSE}
+```{r dep_plots, echo = FALSE}
 
 ggUSA <- 
   ggplot() + 
@@ -63,11 +88,13 @@ ggUSA <-
   coord_fixed(1.3) 
 
 ggUSA + 
-  geom_point(data = abia_merged, aes(x = Long, y = Lat, fill = Prob_LW), shape = 23, size = 3, stroke = 1.75, alpha = .75) +
-  geom_text(data = abia_merged, aes(x = Long, y = Lat, label = abia_merged$Dest ), check_overlap = TRUE, nudge_x = -2, size = 4) + 
-  scale_fill_gradient(low = 'green', high = 'red',guide = 'colourbar') +
+  geom_point(data = abia_merged9, aes(x = Long, y = Lat, fill = Prob_LW), shape = 23, size = 5, stroke = 1.75, alpha = .75) +
+  geom_point(data = abia_mergedJFK, aes(x = Long+.5, y = Lat, fill = Prob_LW), shape = 23, size = 5, stroke = 1.75, alpha = .75) +
+  geom_text(data = abia_merged9, aes(x = Long, y = Lat, label = abia_merged9$Dest ), check_overlap = FALSE, nudge_x = -3.6, size = 5) + 
+  geom_text(data = abia_mergedJFK, aes(x = Long, y = Lat, label = abia_mergedJFK$Dest ), check_overlap = FALSE, nudge_x = +4.1, size = 5) + 
+  scale_fill_gradient(low = 'yellow', high = 'red',guide = 'colourbar') +
   guides(fill = guide_colorbar(title = '')) +
-  ggtitle('Departures - Percent Chance of a Delay Greater Than 20 Minutes by Destination') + 
+  ggtitle('10 Worst Destinations for Flights out of Austin', subtitle = 'Percent Chance of a Departure Delay Greater Than 20 Minutes by Destination') + 
   theme(
     axis.text = element_blank(),
     axis.line = element_blank(),
@@ -76,11 +103,46 @@ ggUSA +
     panel.grid = element_blank(),
     panel.background = element_blank(),
     axis.title = element_blank(),
-    plot.title = element_text(hjust = 0)
+    plot.title = element_text(hjust = .5),
+    plot.subtitle = element_text(hjust = .5)
   ) 
 
 ```
 
+```{r arr_plots, echo= FALSE}
+
+ggUSA_a <- 
+  ggplot() + 
+  geom_polygon(data = states, aes(x=long, y = lat, group = group), color = 'white', fill = 'light blue') + 
+  coord_fixed(1.3) 
+
+ggUSA_a + 
+  geom_point(data = abia_merged8a, aes(x = Long, y = Lat, fill = Prob_LW), shape = 23, size = 5, stroke = 1.75, alpha = .75) +
+  geom_point(data = abia_mergedJFKa, aes(x = Long+.5, y = Lat, fill = Prob_LW), shape = 23, size = 5, stroke = 1.75, alpha = .75) +
+  geom_point(data = abia_mergedRDUa, aes(x = Long, y = Lat, fill = Prob_LW), shape = 23, size = 5, stroke = 1.75, alpha = .75) +
+  geom_text(data = abia_merged8a, aes(x = Long, y = Lat, label = abia_merged8a$Origin ), check_overlap = FALSE, nudge_x = -3.4, size = 5) + 
+  geom_text(data = abia_mergedJFKa, aes(x = Long, y = Lat, label = abia_mergedJFKa$Origin ), check_overlap = FALSE, nudge_x = +3.9, size = 5) +
+  geom_text(data = abia_mergedRDUa, aes(x = Long, y = Lat, label = abia_mergedRDUa$Origin ), check_overlap = FALSE, nudge_x = +3.4, size = 5) +
+  scale_fill_gradient(low = 'yellow', high = 'red',guide = 'colourbar') +
+  guides(fill = guide_colorbar(title = '')) +
+  ggtitle('10 Worst Origination Airports for Flights into Austin', subtitle = 'Percent Chance of an Arrival Delay Greater Than 20 Minutes by Origin') + 
+  theme(
+    axis.text = element_blank(),
+    axis.line = element_blank(),
+    axis.ticks = element_blank(),
+    panel.border = element_blank(),
+    panel.grid = element_blank(),
+    panel.background = element_blank(),
+    axis.title = element_blank(),
+    plot.title = element_text(hjust = .5),
+    plot.subtitle = element_text(hjust = .5)
+  ) 
+
+
+
+
+
+```
 
 ## K-Nearest Neighbors Model: Car Price
 
