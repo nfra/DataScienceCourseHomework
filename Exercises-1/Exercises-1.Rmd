@@ -211,7 +211,7 @@ knn_rmse_plot_350 = ggplot(data = knn_rmse_350) +
   ggtitle("RMSE for various KNN k-values, 350 trim", ) +
   xlab("k-value") +
   ylab("Root Mean Square Error")
-knn_rmse_plot_350 + annotate(geom="text", x=6, y=18000, label= paste("Optimal k-value = ", toString(optimal_k_350)), color="red") 
+knn_rmse_plot_350 + annotate(geom="text", x=6, y=18000, label= paste("Optimal k-value = ", optimal_k_350), color="red") 
 
 ##############
 # Trim: 65 AMG
@@ -259,7 +259,7 @@ knn_rmse_plot_65AMG = ggplot(data = knn_rmse_65AMG) +
   ggtitle("RMSE for various KNN k-values, 65 AMG trim", ) +
   xlab("k-value") +
   ylab("Root Mean Square Error")
-knn_rmse_plot_65AMG + annotate(geom="text", x=20, y=60000, label= paste("Optimal k-value = ", toString(optimal_k_65AMG)), color="red") 
+knn_rmse_plot_65AMG + annotate(geom="text", x=20, y=60000, label= paste("Optimal k-value = ", optimal_k_65AMG), color="red") 
 
 
 ``` 
@@ -275,7 +275,7 @@ p_test_350 = ggplot(data = D_test_350) +
   geom_point(mapping = aes(x = mileage, y = price), color='lightgrey') + 
   theme_bw(base_size=18) + 
   geom_path(aes(x = mileage, y = knn_optimal_350$pred), color='red') +
-  labs(title = "Optimal KNN model, 350", subtitle = paste("k = ", toString(optimal_k_350)), x = "Mileage", y = "Price ($)")
+  labs(title = "Optimal KNN model, 350", subtitle = paste("k =", optimal_k_350), x = "Mileage", y = "Price ($)")
 p_test_350
 
 # Plot optimal k-value KNN with test data for 65 AMG
@@ -285,34 +285,11 @@ p_test_65AMG = ggplot(data = D_test_65AMG) +
   geom_point(mapping = aes(x = mileage, y = price), color='lightgrey') + 
   theme_bw(base_size=18) + 
   geom_path(aes(x = mileage, y = knn_optimal_65AMG$pred), color='red') +
-  labs(title = "Optimal KNN model, 65 AMG", subtitle = paste("k = ", toString(optimal_k_65AMG)), x = "Mileage", y = "Price ($)")
+  labs(title = "Optimal KNN model, 65 AMG", subtitle = paste("k =", optimal_k_65AMG), x = "Mileage", y = "Price ($)")
 p_test_65AMG
 ```
 
-As shown above, the optimal k-value for 
+As shown above, the 350's optimal k-value is larger than the 65 AMG's. This may be the case because the sample size for the 350 is larger than the sample size for the 65 AMG, More bias near the tails may be counteracted by the improved predictive performance on larger number of samples nearer the center of the distribution.
 
 
 
-## Below includes basic template instructions 
-
-## GitHub Documents
-
-This is an R Markdown format used for publishing markdown documents to GitHub. When you click the **Knit** button all R code chunks are run and a markdown file (.md) suitable for publishing to GitHub is generated.
-
-## Including Code
-
-You can include R code in the document as follows:
-
-```{r cars}
-summary(cars)
-```
-
-## Including Plots
-
-You can also embed plots, for example:
-
-```{r pressure, echo=FALSE}
-plot(pressure)
-```
-
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
