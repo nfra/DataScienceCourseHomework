@@ -9,35 +9,28 @@ Exercises 1
 
 ## K-Nearest Neighbors Model: Car Price
 
-## Below includes basic template instructions
+Using the K-nearest neighbors (KNN) model, we examine how mileage
+relates to price for two trim levels of the Mercedes S Class: the 350,
+and the 65 AMG.
 
-## GitHub Documents
+For different values of k, KNN models make varying prediction errors
+given out-of-sample data. The following graphs show the relationship
+between k-value and root mean square error (RMSE), a measure of
+prediction error, for the two different trim levels. The graphs identify
+the k-value for which a KNN model minimizes RMSE with a vertical red
+line.
 
-This is an R Markdown format used for publishing markdown documents to
-GitHub. When you click the **Knit** button all R code chunks are run and
-a markdown file (.md) suitable for publishing to GitHub is generated.
+![](Exercises-1_files/figure-gfm/optimal_k_values-1.png)<!-- -->![](Exercises-1_files/figure-gfm/optimal_k_values-2.png)<!-- -->
 
-## Including Code
+Each of the red lines on the graphs above represents the KNN model that
+minimizes the RMSE. The graphs that follow show those KNN models plotted
+against the test data from which the RMSE data was
+calculated.
 
-You can include R code in the document as follows:
+![](Exercises-1_files/figure-gfm/optimal_knn_models-1.png)<!-- -->![](Exercises-1_files/figure-gfm/optimal_knn_models-2.png)<!-- -->
 
-``` r
-summary(cars)
-```
-
-    ##      speed           dist       
-    ##  Min.   : 4.0   Min.   :  2.00  
-    ##  1st Qu.:12.0   1st Qu.: 26.00  
-    ##  Median :15.0   Median : 36.00  
-    ##  Mean   :15.4   Mean   : 42.98  
-    ##  3rd Qu.:19.0   3rd Qu.: 56.00  
-    ##  Max.   :25.0   Max.   :120.00
-
-## Including Plots
-
-You can also embed plots, for example:
-
-![](Exercises-1_files/figure-gfm/pressure-1.png)<!-- -->
-
-Note that the `echo = FALSE` parameter was added to the code chunk to
-prevent printing of the R code that generated the plot.
+As shown above, the 350’s optimal k-value is larger than the 65 AMG’s.
+This may be the case because the sample size for the 350 is larger than
+the sample size for the 65 AMG, More bias near the tails may be
+counteracted by the improved predictive performance on larger number of
+samples nearer the center of the distribution.
