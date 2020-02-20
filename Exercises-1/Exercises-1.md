@@ -5,10 +5,10 @@ Nathan Franz and Ian McBride
 ## Data Visualization: Flights at ABIA
 
 Our analysis looks at the probability that departures out of Austin will
-be delayed by more than 20 minutes, and uses this metric to highlight
-the the 10 worst destinations. Note that, for the purposes of these
-figures, cancellations also fall into the “delayed by more than 20
-minutes” category.
+be delayed by more than 20 minutes, then uses this metric to highlight
+the 10 worst destinations. Note that, for the purposes of these figures,
+cancellations also fall into the “delayed by more than 20 minutes”
+category.
 
 ![](Exercises-1_files/figure-gfm/dep_plots-1.png)<!-- -->![](Exercises-1_files/figure-gfm/dep_plots-2.png)<!-- -->
 
@@ -42,6 +42,6 @@ against the test data from which the RMSE data was calculated.
 
 As shown above, the 350’s optimal k-value is larger than the 65 AMG’s.
 This may be the case because the sample size for the 350 is larger than
-the sample size for the 65 AMG, More bias near the tails may be
+the sample size for the 65 AMG. More bias near the tails may be
 counteracted by the improved predictive performance on larger number of
 samples nearer the center of the distribution.
