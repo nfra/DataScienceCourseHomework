@@ -46,7 +46,7 @@ yhat_test_better = predict(lm_better, saratoga_test)
 
 better_rmse = rmse(saratoga_test$price, yhat_test_better)
 
-# Make data numeric and scale by standard deviation for KNN
+# TODO: Make data numeric and scale by standard deviation for KNN
 
 
 
