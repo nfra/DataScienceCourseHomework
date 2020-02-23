@@ -46,21 +46,39 @@ yhat_test_better = predict(lm_better, saratoga_test)
 
 better_rmse = rmse(saratoga_test$price, yhat_test_better)
 
-# TODO: Make data numeric and scale by standard deviation for KNN
+# Make data numeric and TODO: scale by standard deviation for KNN
+
+SaratogaHouses$heating_is_electric = eval(SaratogaHouses$heating == "electric")
+SaratogaHouses$heating_is_hotwatersteam = eval(SaratogaHouses$heating == "hot water/steam")
+SaratogaHouses$heating_is_hotair = eval(SaratogaHouses$heating == "hot air")
+
+SaratogaHouses$fuel_is_gas = eval(SaratogaHouses$fuel == "gas")
+SaratogaHouses$fuel_is_electric = eval(SaratogaHouses$fuel == "electric")
+SaratogaHouses$fuel_is_oil = eval(SaratogaHouses$fuel == "oil")
+
+SaratogaHouses$centralAir_is_yes = eval(SaratogaHouses$centralAir == "yes")
+SaratogaHouses$centralAir_is_no = eval(SaratogaHouses$centralAir == "no")
+
+saratoga_train = SaratogaHouses[train_cases,]
+saratoga_test = SaratogaHouses[test_cases,]
 
 
 
 # Calculate RMSE for KNN
 
 saratoga_train_x = saratoga_train[,c("lotSize", "age", "livingArea", "pctCollege", 
-                                     "bedrooms", "fireplaces", "bathrooms", 
-                                     "rooms", "heating", "fuel", "centralAir")]
+                                     "bedrooms", "fireplaces", "bathrooms", "rooms", 
+                                     "heating_is_electric", "heating_is_hotwatersteam", 
+                                     "fuel_is_gas", "fuel_is_electric", "centralAir_is_yes")]
 saratoga_train_y = saratoga_train$price
 saratoga_test_x = saratoga_test[,c("lotSize", "age", "livingArea", "pctCollege", 
-                                   "bedrooms", "fireplaces", "bathrooms", 
-                                   "rooms", "heating", "fuel", "centralAir")]
+                                   "bedrooms", "fireplaces", "bathrooms", "rooms", 
+                                   "heating_is_electric", "heating_is_hotwatersteam", 
+                                   "fuel_is_gas", "fuel_is_electric", "centralAir_is_yes")]
 saratoga_test_y = saratoga_test$price
 
 knn_better = knn.reg(train=saratoga_train_x, test=saratoga_test_x, 
                      y=saratoga_train_y, k=5)
 
+yhat_knn_better = knn_better$pred
+rmse(saratoga_test_y, yhat_knn_better)
