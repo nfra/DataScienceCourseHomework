@@ -66,6 +66,16 @@ saratoga_test = SaratogaHouses[test_cases,]
 
 # Calculate RMSE for KNN
 
+# (note the -1, which says to leave off a column of 1's for an intercept)
+X_all = model.matrix(~lotSize + age + livingArea + pctCollege + 
+                       bedrooms + fireplaces + bathrooms + rooms + heating + fuel +
+                       centralAir + newConstruction - 1,
+                     data=SaratogaHouses)
+
+
+feature_sd = apply(saratoga_X, 2, sd)
+X_std = scale(X_all, scale=feature_sd)
+
 saratoga_train_x = saratoga_train[,c("lotSize", "age", "livingArea", "pctCollege", 
                                      "bedrooms", "fireplaces", "bathrooms", "rooms", 
                                      "heating_is_electric", "heating_is_hotwatersteam", 
