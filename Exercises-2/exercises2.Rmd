@@ -1,6 +1,6 @@
 ---
 title: "Exercises 2"
-author: "Lukas Facile, Nathan Franz, and Ian McBride"
+author: "Nathan Franz, Ian McBride, and Claire Roycroft"
 output: github_document
 ---
 
