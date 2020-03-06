@@ -220,7 +220,7 @@ compare performance across different sets of random samples, this issue
 is alleviated by averaging across a large number of random samples
 within each set, which we do in our analysis.)
 
-![](exercises2_files/figure-gfm/e1_results-1.png)<!-- -->
+![](Exercises2_files/figure-gfm/e1_results-1.png)<!-- -->
 
 For tax-assessing purposes, the main takeaways from our analysis are
 clear. Obtaining accurate information about land value, basic house
