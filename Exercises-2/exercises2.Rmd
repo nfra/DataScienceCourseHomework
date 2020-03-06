@@ -18,6 +18,7 @@ library(FNN)
 library(formula.tools)
 library(foreach)
 library(stargazer)
+library(doMC)
 ```
 
 # Saratoga house prices
@@ -205,7 +206,7 @@ knn_plot <-
 knn_plot
 
 ```
-In order to predict the market values of properties in the Saratoga, NY market, our team developed several different models based on the available data. We then iteratively scored the performance of our models and implemented various alterations to try to improve each of the models' predictive ability. While we will not delve into many of the technical details of our analysis in this report, it is important to give a brief description of the primary measure that we used to evaluate model performance. This metric, called 'Root Mean-Squared Error' (RMSE), reports an average difference of the value predicted by our model compared to the actual value of the property. The main goal of our work was to minimize this value.
+In order to predict the market values of properties in the Saratoga, NY market, our team developed several different models based on the available data. We then iteratively scored the performance of our models and implemented various alterations to try to improve each model's predictive ability. While we will not delve into many of the technical details of our analysis in this report, it is important to give a brief description of the primary measure that we used to evaluate model performance. This metric, called 'Root Mean-Squared Error' (RMSE), reports an average difference of the value predicted by our model compared to the actual value of the property. The main goal of our work was to minimize this value.
 
 To start, our team ran a linear regression on a selection of covariates that we strongly suspected would have a significant impact on the market value of a given property. This regression served as the baseline for further analysis; different variables and interaction terms were subsequently added or removed, and the predictive accuracy was re-measured according to the RMSE metric. To rank the relative importance of terms in our final hand-built model, we then individually dropped each of the terms from the regression, re-ran it, then compared the model's performance without a given covariate to its performance with the covariate included. This process yielded several mostly intuitive conclusions; the most important variables to include in our model were the underlying land value, the living area interacted with whether a property was newly built, waterfront status, and room characteristics (with interactions). These results can be seen in the table below. Additionally, the RMSE of the original model was lower than each of the models with one excluded term, which verified that all terms in our regression were positively contributing to our goal of reducing the overall RMSE.
 
@@ -402,5 +403,297 @@ ggplot(aes(x = label,
 ```
 
 
-
 # Predicting when articles go viral
+
+```{r setup, include=FALSE, message=FALSE, warning=FALSE}
+news<-read_csv("Desktop/Data Mining/Homework/DataScienceCourseHomework/Exercises-2/data/online_news.csv")
+news$url<- NULL
+```
+
+In order to determine the best approach, several models were built. First a linear model of shares on explanatory variables was run, and then the results were classified as viral or not viral. Two models were built using this method using stepwise selection. Stepwise selection was used for both a linear model with interactions, and one without interactions, and the model without interactions was chosen in both cases because the interactions did not significantly improve the performance of the model. The first was a linear model of shares, and the second was a linear model of log of shares. The log transformation was used to reduce the impact of outliers on the regression. The linear model of log of shares was more successful. Over multiple train test splits, it achieved a lower overall error rate, a lower false positive rate, and a higher true positive rate. This makes sense because the nature of viral articles (number of shares) is likely not linear. This model outperformed the best baseline model which assumes all articles are not viral. 
+
+```{r include=FALSE, message=FALSE, warning=FALSE}
+#split data
+# splitting
+n = nrow(news)
+n_train = round(0.8*n)  # round to nearest integer
+n_test = n - n_train
+train_cases = sample.int(n, n_train, replace=FALSE)
+test_cases = setdiff(1:n, train_cases)
+news_train = news[train_cases,]
+news_test = news[test_cases,]
+#out of sample performance
+
+lm_news=lm(shares~data_channel_is_world + data_channel_is_entertainment + 
+                 is_weekend + data_channel_is_bus + num_hrefs + self_reference_avg_sharess + 
+                 data_channel_is_tech + average_token_length + data_channel_is_lifestyle + 
+                 num_imgs + num_self_hrefs + avg_negative_polarity + num_keywords + 
+                 title_sentiment_polarity + weekday_is_friday + weekday_is_monday + 
+                 title_subjectivity + min_positive_polarity + avg_positive_polarity + 
+                 num_videos + data_channel_is_socmed + n_tokens_title +n_tokens_content +num_hrefs
+               + average_token_length +global_rate_positive_words +global_rate_negative_words +abs_title_sentiment_polarity, data=news_train)
+
+#log of shares built stepwise
+lm_news1=lm(log(shares) ~ data_channel_is_world + data_channel_is_entertainment + 
+                 is_weekend + data_channel_is_bus + num_hrefs + self_reference_avg_sharess + 
+                 data_channel_is_tech + average_token_length + data_channel_is_lifestyle + 
+                 num_imgs + num_self_hrefs + avg_negative_polarity + num_keywords + 
+                 title_sentiment_polarity + weekday_is_friday + weekday_is_monday + 
+                 title_subjectivity + min_positive_polarity + avg_positive_polarity + 
+                 num_videos + data_channel_is_socmed + n_tokens_title +n_tokens_content +num_hrefs
+               + average_token_length +global_rate_positive_words +global_rate_negative_words +abs_title_sentiment_polarity, data=news_train)
+
+#logit model
+news1<-
+  news %>% mutate(viral=ifelse(shares>1400, 1, 0))
+
+glm_news = glm(viral ~ data_channel_is_world + data_channel_is_entertainment + 
+                 is_weekend + data_channel_is_bus + num_hrefs + self_reference_avg_sharess + 
+                 data_channel_is_tech + average_token_length + data_channel_is_lifestyle + 
+                 num_imgs + num_self_hrefs + avg_negative_polarity + num_keywords + 
+                 title_sentiment_polarity + weekday_is_friday + weekday_is_monday + 
+                 title_subjectivity + min_positive_polarity + avg_positive_polarity + 
+                 num_videos + data_channel_is_socmed + n_tokens_title +n_tokens_content +num_hrefs
+               + average_token_length +global_rate_positive_words +global_rate_negative_words +abs_title_sentiment_polarity, data=news1, family='binomial')
+
+#confusion matrix for logit model
+n = nrow(news1)
+n_train = round(0.8*n)  # round to nearest integer
+n_test = n - n_train
+train_cases = sample.int(n, n_train, replace=FALSE)
+test_cases = setdiff(1:n, train_cases)
+news1_train = news1[train_cases,]
+news1_test = news1[test_cases,]
+
+phat_test_news_logit = predict(glm_news, news1_test, type= 'response')
+yhat_test_news_logit = ifelse(phat_test_news_logit > 0.5, 1, 0)
+confusion_out_logit = table(y = news1_test$viral, yhat = yhat_test_news_logit)
+
+```
+
+```{r sample confusion matrix, message=FALSE, warning=FALSE}
+confusion_out_logit
+```
+
+```{r building functions for do loops, warning=FALSE, message=FALSE, include=FALSE}
+#function for classification for linear models
+confusion_fun= function(y, ypred) {
+  ifelse(ypred>1400 & y>1400, "truepos", 
+         ifelse(ypred>1400 & y<=1400, "falsepos", 
+                ifelse(ypred<=1400 & y>1400, "falseneg", "trueneg")))}
+
+#function for classification for logit models
+confusion_fun1= function(y, ypred) {
+  ifelse(ypred  > .5 & y >.5, "truepos", 
+         ifelse(ypred >.5 & y <=.5 , "falsepos", 
+                ifelse(ypred <=.5 & y > .5, "falseneg",  "trueneg")))}
+```
+
+```{r baseline comparisons, warning=FALSE, message=FALSE, include=FALSE}
+#baseline models to compare to
+#best model is nonviral
+table(news1_test$viral)
+
+baseline_nonviral= do(100)*{# splitting
+  n = nrow(news)
+  n_train = round(0.8*n)  # round to nearest integer
+  n_test = n - n_train
+  train_cases = sample.int(n, n_train, replace=FALSE)
+  test_cases = setdiff(1:n, train_cases)
+  news_train = news[train_cases,]
+  news_test = news[test_cases,]
+  
+  #output
+  
+  outcome_1=confusion_fun(news_test$shares, 1300)
+  
+  c(count(outcome_1=="trueneg"),
+    count(outcome_1=="falseneg"),
+    count(outcome_1=="falsepos"), 
+    count(outcome_1=="truepos")
+  )
+}
+
+colnames(baseline_nonviral) = c("0 0", "1 0", 
+                                "0 1", "1 1")
+colMeans(baseline_nonviral)
+baseline_nvmatrix<-baseline_nonviral %>% 
+  pivot_longer(cols = colnames(.)) %>% 
+  separate(name, into = c("Value", "Type")) %>% 
+  pivot_wider(id_cols = "Value", names_from = "Type",
+              values_fn = list(value = mean))
+baseline_m<-as.data.frame(baseline_nvmatrix)
+```
+
+```{r baseline nonviral matrix,  results = 'asis'}
+stargazer(baseline_m, summary=FALSE, rownames=FALSE, type='html', title="Baseline Confusion Matrix", notes="Values are averaged over 100 train-test splits. Predicted values are columns, and actual values are rows. This baseline model guesses that all articles are not viral.")
+```
+
+The baseline model has an overall error rate and false positive rate of approximately 0.49 and a true positive rate of zero over 100 train/test splits. 
+
+```{r Shares model, warning=FALSE, message=FALSE, include=FALSE}
+#Shares model loop
+shares_model= do(100)*{# splitting
+  n = nrow(news)
+  n_train = round(0.8*n)  # round to nearest integer
+  n_test = n - n_train
+  train_cases = sample.int(n, n_train, replace=FALSE)
+  test_cases = setdiff(1:n, train_cases)
+  news_train = news[train_cases,]
+  news_test = news[test_cases,]
+  
+  # regressions
+  lm_news=lm(shares~data_channel_is_world + data_channel_is_entertainment + 
+                 is_weekend + data_channel_is_bus + num_hrefs + self_reference_avg_sharess + 
+                 data_channel_is_tech + average_token_length + data_channel_is_lifestyle + 
+                 num_imgs + num_self_hrefs + avg_negative_polarity + num_keywords + 
+                 title_sentiment_polarity + weekday_is_friday + weekday_is_monday + 
+                 title_subjectivity + min_positive_polarity + avg_positive_polarity + 
+                 num_videos + data_channel_is_socmed + n_tokens_title +n_tokens_content +num_hrefs
+               + average_token_length +global_rate_positive_words +global_rate_negative_words +abs_title_sentiment_polarity , data=news_train)
+  
+  # predictions
+  yhat_news1 = predict(lm_news, news_test)
+  
+  
+  #output
+  
+  outcome_1=confusion_fun(news_test$shares, yhat_news1)
+  
+  
+  c(count(outcome_1=="trueneg"),
+    count(outcome_1=="falseneg"),
+    count(outcome_1=="falsepos"), 
+    count(outcome_1=="truepos")
+  )
+}
+#name columns
+colnames(shares_model) = c("0 0", "1 0", 
+                           "0 1", "1 1")
+#turn into confusion matrix
+shares_matrix <-shares_model %>% 
+  pivot_longer(cols = colnames(.)) %>% 
+  separate(name, into = c("Value", "Type")) %>% 
+  pivot_wider(id_cols = "Value", names_from = "Type",
+              values_fn = list(value = mean))
+shares_matrix
+```
+
+```{r log of shares model loop, warning=FALSE, message=FALSE, include=FALSE}
+#Log of shares model loop
+
+logshares_model= do(100)*{# splitting
+  n = nrow(news)
+  n_train = round(0.8*n)  # round to nearest integer
+  n_test = n - n_train
+  train_cases = sample.int(n, n_train, replace=FALSE)
+  test_cases = setdiff(1:n, train_cases)
+  news_train = news[train_cases,]
+  news_test = news[test_cases,]
+  
+  # regressions
+  lm_news=lm(log(shares) ~ data_channel_is_world + data_channel_is_entertainment + 
+               is_weekend + data_channel_is_bus + num_hrefs + self_reference_avg_sharess + 
+               data_channel_is_tech + average_token_length + data_channel_is_lifestyle + 
+               num_imgs + num_self_hrefs + avg_negative_polarity + num_keywords + 
+               title_sentiment_polarity + weekday_is_friday + weekday_is_monday + 
+               title_subjectivity + min_positive_polarity + avg_positive_polarity + 
+               num_videos + data_channel_is_socmed + n_tokens_title +n_tokens_content +num_hrefs
+             + average_token_length +global_rate_positive_words +global_rate_negative_words +abs_title_sentiment_polarity, data=news_train)
+  
+  # predictions
+  yhat_news1 = exp(predict(lm_news, news_test))
+  
+  
+  #output
+  
+  outcome_1=confusion_fun(news_test$shares, yhat_news1)
+  
+  
+  c(count(outcome_1=="trueneg"),
+    count(outcome_1=="falseneg"),
+    count(outcome_1=="falsepos"), 
+    count(outcome_1=="truepos")
+  )
+}
+#name columns
+colnames(logshares_model) = c("0 0", "1 0", 
+                           "0 1", "1 1")
+#turn into confusion matrix
+logshares_matrix<- logshares_model %>% 
+  pivot_longer(cols = colnames(.)) %>% 
+  separate(name, into = c("Value", "Type")) %>% 
+  pivot_wider(id_cols = "Value", names_from = "Type",
+              values_fn = list(value = mean))
+
+logshares_m<-as.data.frame(logshares_matrix)
+```
+
+```{r log of shares matrix over 100 reps,  results = 'asis'}
+stargazer(logshares_m, summary=FALSE, rownames=FALSE, type='html', title="Log(Shares) Confusion Matrix", notes="Values are averaged over 100 train-test splits. Predicted values are columns, and actual values are rows.")
+```
+
+The log linear model had, averaging over 100 train/test splits, an approximate overall error rate = 0.41, a false positive rate = 0.67, and a true positive rate = 0.86. 
+
+```{r Logit Loop, warning=FALSE, message=FALSE, include=FALSE}
+#Logit Loop
+logit_model= do(100)*{# splitting
+  n = nrow(news1)
+  n_train = round(0.8*n)  # round to nearest integer
+  n_test = n - n_train
+  train_cases = sample.int(n, n_train, replace=FALSE)
+  test_cases = setdiff(1:n, train_cases)
+  news1_train = news1[train_cases,]
+  news1_test = news1[test_cases,]
+
+  # regressions model built stepwise 
+  glm_news=glm(viral ~ data_channel_is_world + data_channel_is_entertainment + 
+                 is_weekend + data_channel_is_bus + num_hrefs + self_reference_avg_sharess + 
+                 data_channel_is_tech + average_token_length + data_channel_is_lifestyle + 
+                 num_imgs + num_self_hrefs + avg_negative_polarity + num_keywords + 
+                 title_sentiment_polarity + weekday_is_friday + weekday_is_monday + 
+                 title_subjectivity + min_positive_polarity + avg_positive_polarity + 
+                 num_videos + data_channel_is_socmed + n_tokens_title +n_tokens_content +num_hrefs
+               + average_token_length +global_rate_positive_words +global_rate_negative_words +abs_title_sentiment_polarity
+               ,data=news1_train, family='binomial')
+  
+  # predictions
+  yhat_newsglm = predict(glm_news, news1_test, type='response')
+  
+  #output
+  
+  outcome_2=confusion_fun1(news1_test$viral, yhat_newsglm)
+  
+  
+  c(count(outcome_2=="trueneg"),
+    count(outcome_2=="falseneg"),
+    count(outcome_2=="falsepos"), 
+    count(outcome_2=="truepos")
+  )
+}
+#name columns
+
+colnames(logit_model) = c("0 0", "1 0", 
+                          "0 1", "1 1")
+#turn into confusion matrix
+logit_matrix<- logit_model %>% 
+  pivot_longer(cols = colnames(.)) %>% 
+  separate(name, into = c("Value", "Type")) %>% 
+  pivot_wider(id_cols = "Value", names_from = "Type",
+              values_fn = list(value = mean))
+logit_m<-as.data.frame(logit_matrix)
+logit_matrix
+
+```
+
+```{r logit model confusion matrix averages, results = 'asis'}
+stargazer(logit_m, summary=FALSE, rownames=FALSE, type='html', title="Logit Confusion Matrix", notes="Values are averaged over 100 train-test splits. Predicted values are columns, and actual values are rows.")
+```
+
+The second approach was to create an indicator variable for whether or not each article was viral based on its shares. To determine the best model to use for a logit regression, two methods were used. The first was a stepwise model, and the second was a lasso model. There were no major differences between the performance of these models. The logit model using stepwise variable selection outperformed the linear models and the best baseline model because it has more of an increase in true positive rate than false positive rate compared to the log linear model. The logit model had, averaging over 100 train/test splits, an approximate overall error rate = 0.37, a false positive rate = 0.37, and a true positive rate = 0.63.
+
+The first method is effectively using a linear regression to predict a binary outcome. Logit performs better for classification problems like this because it is designed for binary classification using maximum likelihood estimation, while linear models use ordinary least squares, which may be less efficient in this case in terms of the true positive rate is lower. In the case of the linear model, the model is more likely to guess viral, because of the outliers (this was even more apparent in the model for shares). The overall error rate for the logit model is lower, and the false positive rate outperforms the baseline and the linear model. However, if the true positive rate were very important in determining a model's performance, the linear model would be better. 
+
+
+
+
