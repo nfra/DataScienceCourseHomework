@@ -5,7 +5,10 @@ output: github_document
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(mosaic)
+library(FNN)
+library(ggthemes)
 ```
 
 # Exercise 1: Saratoga house prices
@@ -14,15 +17,179 @@ knitr::opts_chunk$set(echo = TRUE)
 
 # Exercise 2: A hospital audit
 
+```{r exercise2setup, include=F}
+brca = read.csv("./data/brca.csv")
+```
+
+We examine the performance of five radiologists in recalling patients who have undergone a diagnostic mammogram for further diagnostic screening. Obviously, increasing the correct diagnosis cancer rate is important. Less obviously, this screening involves a significant inconvenience and expense for doctors and patients, so reducing the number of cancer-free patients who are recalled should also be a priority.
+
+First, we compare the doctors' recall rates for signs of systematic differences, accounting for variation in relevant patient characteristics. Then, we compare the doctors' recall rates to the rate of cancer diagnosis within a year of the screening mammogram and we look for information the doctors may not be weighing heavily enough.
+
+
 ## Systematic differences in recall rate among radiologists
+
+Significant systematic differences among radiologists' rates of recall, holding observable patient characteristics constant, would constitute an undesirable heterogeneity. If such discrepancies exist, the cardiologists ought to compare their criteria for recalling a patient. Below, we examine whether that is the case.
+
+Using a logistic regression of patient recall on radiologist, age, history of breast surgery, presence of breast cancer symptoms, menopause and hormone therapy status, and breast density level, we can compare the relative conservatism of each of the doctors.
+
+``` {r radiologist_conservatism, echo=F}
+binomial_recall_model = glm(recall ~ . - cancer, data=brca, family=binomial)
+
+callback_conservatism = data.frame(summary(binomial_recall_model)$coefficients[2:5,])
+callback_conservatism$radiologist = c('34', '66', '89', '95')
+callback_conservatism$ci95_low = callback_conservatism[,1] - 1.96*callback_conservatism[,2]
+callback_conservatism$ci95_high = callback_conservatism[,1] + 1.96*callback_conservatism[,2]
+
+ggplot(aes(x = radiologist,
+           y = Estimate), 
+       data = callback_conservatism) +
+  geom_pointrange(aes(ymin = ci95_low, ymax = ci95_high)) +
+  geom_hline(yintercept = 0, color = "red") +
+  theme_clean() +
+  xlab('Radiologist Identification Number') +
+  ylab('Coefficient Estimate (with 95% CI)')
+```
+
+The figure above gives the coefficient estimates and 95% confidence interval (CI) for the radiologists, relative to radiologist 13. The higher the coefficient, the more likely that radiologist was to recall a patient, controlling for the covariates mentioned above; the lower the coefficient, the less likely.
+
+As shown in the figure, none of the doctors' recall rates significantly differ from any other's at the 95% confidence level. However, Radiologist 89 does recall patients significantly more often at the 90% confidence level.
 
 ## Systematic error in recall rate
 
+If there are observable patient characteristics that are associated with  significantly increased probability of being diagnosed with breast cancer within twelve months of a diagnostic mammogram, holding rate of recall fixed, then the doctors should give those characteristics more attention. Below, we examine whether this is the case, both for all doctors as a group and for each doctor individually.
+
+
 ### Among all radiologists
+
+We consider a logistic regression of cancer rate on whether the patient was recalled, the diagnosing radiologist, and patient characteristics.
+
+```{r callback_error_group, echo=F}
+logit_cancer_model = glm(cancer ~ ., data=brca, family=binomial)
+
+callback_error = data.frame(summary(logit_cancer_model)$coefficients)
+callback_error_sig = callback_error[callback_error$Pr...z..<=0.1,]
+callback_error_sig$label = c('Intercept', 'Recalled', 'Age > 70', 'Tissue Density 4')
+
+callback_error_sig$ci95_low = callback_error_sig[,1] - 1.96*callback_error_sig[,2]
+callback_error_sig$ci95_high = callback_error_sig[,1] + 1.96*callback_error_sig[,2]
+
+ggplot(aes(x = label,
+           y = Estimate), 
+       data = callback_error_sig) +
+  geom_pointrange(aes(ymin = ci95_low, ymax = ci95_high)) +
+  geom_hline(yintercept = 0, color = "red")
+```
 
 ### For each radiologist
 
+We consider logistic regressions of cancer rate on whether the patient was recalled and patient characteristics for each individual radiologist.
 
+The plots below 
+
+```{r callback_error_radiologist13, echo=F}
+# Radiologist 13
+logit_cancer13_model = glm(cancer ~ . , data=brca[brca$radiologist == 'radiologist13', 2:8], family=binomial)
+
+callback_error_13 = data.frame(summary(logit_cancer13_model)$coefficients)
+callback_error_13_sig = callback_error_13[callback_error_13$Pr...z..<=0.1,]
+callback_error_13_sig$label = c('Recalled', 'Age 50-59')
+
+callback_error_13_sig$ci95_low = callback_error_13_sig[,1] - 1.96*callback_error_13_sig[,2]
+callback_error_13_sig$ci95_high = callback_error_13_sig[,1] + 1.96*callback_error_13_sig[,2]
+
+ggplot(aes(x = label,
+           y = Estimate), 
+       data = callback_error_13_sig) +
+  geom_pointrange(aes(ymin = ci95_low, ymax = ci95_high)) +
+  geom_hline(yintercept = 0, color = "red") +
+  theme_clean() +
+  xlab('') +
+  ylab('Coefficient Estimate (with 95% CI)')
+```
+
+```{r callback_error_radiologist34, echo=F}
+# Radiologist 34
+logit_cancer34_model = glm(cancer ~ . , data=brca[brca$radiologist == 'radiologist34', 2:8], family=binomial)
+
+callback_error_34 = data.frame(summary(logit_cancer34_model)$coefficients)
+callback_error_34_sig = callback_error_34[callback_error_34$Pr...z..<=0.1,]
+callback_error_34_sig$label = c('Intercept', 'Age 50-59', 'Breast surgery History', 'Post Meno, HT Unk')
+
+callback_error_34_sig$ci95_low = callback_error_34_sig[,1] - 1.96*callback_error_34_sig[,2]
+callback_error_34_sig$ci95_high = callback_error_34_sig[,1] + 1.96*callback_error_34_sig[,2]
+
+ggplot(aes(x = label,
+           y = Estimate), 
+       data = callback_error_34_sig[callback_error_34_sig$label != 'Intercept',]) +
+  geom_pointrange(aes(ymin = ci95_low, ymax = ci95_high)) +
+  geom_hline(yintercept = 0, color = "red") +
+  theme_clean() +
+  xlab('') +
+  ylab('Coefficient Estimate (with 95% CI)')
+```
+
+```{r callback_error_radiologist66, echo=F}
+# Radiologist 66
+logit_cancer66_model = glm(cancer ~ . , data=brca[brca$radiologist == 'radiologist66', 2:8], family=binomial)
+
+callback_error_66 = data.frame(summary(logit_cancer66_model)$coefficients)
+callback_error_66_sig = callback_error_66[callback_error_66$Pr...z..<=0.1,]
+callback_error_66_sig$label = c('Recalled', 'Age 70+', 'Pre Meno')
+
+callback_error_66_sig$ci95_low = callback_error_66_sig[,1] - 1.96*callback_error_66_sig[,2]
+callback_error_66_sig$ci95_high = callback_error_66_sig[,1] + 1.96*callback_error_66_sig[,2]
+
+ggplot(aes(x = label,
+           y = Estimate), 
+       data = callback_error_66_sig) +
+  geom_pointrange(aes(ymin = ci95_low, ymax = ci95_high)) +
+  geom_hline(yintercept = 0, color = "red") +
+  theme_clean() +
+  xlab('') +
+  ylab('Coefficient Estimate (with 95% CI)')
+```
+
+```{r callback_error_radiologist89, echo=F}
+# Radiologist 89
+logit_cancer89_model = glm(cancer ~ . , data=brca[brca$radiologist == 'radiologist89', 2:8], family=binomial)
+
+callback_error_89 = data.frame(summary(logit_cancer89_model)$coefficients)
+callback_error_89_sig = callback_error_89[callback_error_89$Pr...z..<=0.1,]
+callback_error_89_sig$label = c('Recalled', 'BC Symptoms')
+
+callback_error_89_sig$ci95_low = callback_error_89_sig[,1] - 1.96*callback_error_89_sig[,2]
+callback_error_89_sig$ci95_high = callback_error_89_sig[,1] + 1.96*callback_error_89_sig[,2]
+
+ggplot(aes(x = label,
+           y = Estimate), 
+       data = callback_error_89_sig) +
+  geom_pointrange(aes(ymin = ci95_low, ymax = ci95_high)) +
+  geom_hline(yintercept = 0, color = "red") +
+  theme_clean() +
+  xlab('') +
+  ylab('Coefficient Estimate (with 95% CI)')
+```
+
+```{r cancer_error_radiologist95, echo=F}
+# Radiologist 95
+logit_cancer95_model = glm(cancer ~ . , data=brca[brca$radiologist == 'radiologist95', 2:8], family=binomial)
+
+callback_error_95 = data.frame(summary(logit_cancer95_model)$coefficients)
+callback_error_95_sig = callback_error_95[callback_error_95$Pr...z..<=0.1,]
+callback_error_95_sig$label = c('Recalled')
+
+callback_error_95_sig$ci95_low = callback_error_95_sig[,1] - 1.96*callback_error_95_sig[,2]
+callback_error_95_sig$ci95_high = callback_error_95_sig[,1] + 1.96*callback_error_95_sig[,2]
+
+ggplot(aes(x = label,
+           y = Estimate), 
+       data = callback_error_95_sig) +
+  geom_pointrange(aes(ymin = ci95_low, ymax = ci95_high)) +
+  geom_hline(yintercept = 0, color = "red") +
+  theme_clean() +
+  xlab('') +
+  ylab('Coefficient Estimate (with 95% CI)')
+```
 
 # Exercise 3: Predicting when articles go viral
 
