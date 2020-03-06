@@ -18,7 +18,6 @@ library(FNN)
 library(formula.tools)
 library(foreach)
 library(stargazer)
-library(doMC)
 ```
 
 # Saratoga house prices
@@ -201,7 +200,9 @@ knn_plot <-
   geom_text(aes(0,baseline_rmse,label = 'Avg. RMSE of Baseline OLS', vjust = -.4, hjust = 0), color = 'dark orange') +
   labs(x='K Values')+
   labs(y='RMSE')+
-  ggtitle('KNN Fit on House Price Data')
+  ggtitle('KNN Fit on House Price Data') +
+  theme_clean() +
+  theme(plot.background=element_blank())
 
 knn_plot
 
@@ -232,7 +233,7 @@ For tax-assessing purposes, the main takeaways from our analysis are clear. Obta
 brca = read.csv("./data/brca.csv")
 ```
 
-We examine the performance of five radiologists in recalling patients who have undergone a diagnostic mammogram for further diagnostic screening. Obviously, increasing the correct diagnosis cancer rate is important. Less obviously, this screening involves a significant inconvenience and expense for doctors and patients, so reducing the number of cancer-free patients who are recalled should also be a priority.
+We examine the performance of five radiologists in recalling patients who have undergone a mammogram for further diagnostic screening. Obviously, increasing the correct diagnosis cancer rate is important. Less obviously, this screening involves a significant inconvenience and expense for doctors and patients, so reducing the number of cancer-free patients who are recalled should also be a priority.
 
 First, we compare the doctors' recall rates for signs of systematic differences, accounting for variation in relevant patient characteristics. Then, we compare the doctors' recall rates to the rate of cancer diagnosis within a year of the screening mammogram and we look for information the doctors may not be weighing heavily enough.
 
@@ -243,7 +244,7 @@ Significant systematic differences among radiologists' rates of recall, holding 
 
 Using a logistic regression of patient recall on radiologist, age, history of breast surgery, presence of breast cancer symptoms, menopause and hormone therapy status, and breast density level, we can compare the relative conservatism of each of the doctors.
 
-``` {r radiologist_conservatism, echo=F}
+``` {r radiologist_conservatism, warning=F, echo=F}
 binomial_recall_model = glm(recall ~ . - cancer, data=brca, family=binomial)
 
 callback_conservatism = data.frame(summary(binomial_recall_model)$coefficients[2:5,])
@@ -257,6 +258,7 @@ ggplot(aes(x = radiologist,
   geom_pointrange(aes(ymin = ci95_low, ymax = ci95_high)) +
   geom_hline(yintercept = 0, color = "red") +
   theme_clean() +
+  theme(plot.background=element_blank()) +
   xlab('Radiologist Identification Number') +
   ylab('Coefficient Estimate (with 95% CI)')
 ```
@@ -274,7 +276,7 @@ If there are observable patient characteristics that are associated with  signif
 
 We consider a logistic regression of cancer rate on whether the patient was recalled, the diagnosing radiologist, and patient characteristics.
 
-```{r callback_error_group, echo=F}
+```{r callback_error_group, warning=F, echo=F}
 logit_cancer_model = glm(cancer ~ ., data=brca, family=binomial)
 
 callback_error = data.frame(summary(logit_cancer_model)$coefficients)
@@ -286,18 +288,20 @@ callback_error_sig$ci95_high = callback_error_sig[,1] + 1.96*callback_error_sig[
 
 ggplot(aes(x = label,
            y = Estimate),
-       data = callback_error_sig) +
+       data = callback_error_sig[callback_error_sig$label != 'Intercept',]) +
+  theme_clean() +
+  theme(plot.background=element_blank()) +
   geom_pointrange(aes(ymin = ci95_low, ymax = ci95_high)) +
   geom_hline(yintercept = 0, color = "red")
 ```
 
+The radiologists should consider being more willing to recall patients who are 70 or older and who have type 4 tissue density, which both have significantly positive coefficient estimates at the 90% confidence level.
+
 ### For each radiologist
 
-We consider logistic regressions of cancer rate on whether the patient was recalled and patient characteristics for each individual radiologist.
+We consider logistic regressions of cancer rate on whether the patient was recalled and patient characteristics for each individual radiologist. The plots below show the coefficient estimates that are significant at the 90% level. 
 
-The plots below
-
-```{r callback_error_radiologist13, echo=F}
+```{r callback_error_radiologist13, warning=F, echo=F}
 # Radiologist 13
 logit_cancer13_model = glm(cancer ~ . , data=brca[brca$radiologist == 'radiologist13', 2:8], family=binomial)
 
@@ -314,17 +318,20 @@ ggplot(aes(x = label,
   geom_pointrange(aes(ymin = ci95_low, ymax = ci95_high)) +
   geom_hline(yintercept = 0, color = "red") +
   theme_clean() +
+  theme(plot.background=element_blank()) +
   xlab('') +
   ylab('Coefficient Estimate (with 95% CI)')
 ```
 
-```{r callback_error_radiologist34, echo=F}
+Radiologist 13 should consider being more willing to recall patients between 50 and 59 years old, which is significant at the 90% confidence level.
+
+```{r callback_error_radiologist34, warning=F, echo=F}
 # Radiologist 34
 logit_cancer34_model = glm(cancer ~ . , data=brca[brca$radiologist == 'radiologist34', 2:8], family=binomial)
 
 callback_error_34 = data.frame(summary(logit_cancer34_model)$coefficients)
 callback_error_34_sig = callback_error_34[callback_error_34$Pr...z..<=0.1,]
-callback_error_34_sig$label = c('Intercept', 'Age 50-59', 'Breast surgery History', 'Post Meno, HT Unk')
+callback_error_34_sig$label = c('Intercept', 'Age 50-59', 'Breast Surgery History', 'Post Meno, HT Unk')
 
 callback_error_34_sig$ci95_low = callback_error_34_sig[,1] - 1.96*callback_error_34_sig[,2]
 callback_error_34_sig$ci95_high = callback_error_34_sig[,1] + 1.96*callback_error_34_sig[,2]
@@ -335,11 +342,14 @@ ggplot(aes(x = label,
   geom_pointrange(aes(ymin = ci95_low, ymax = ci95_high)) +
   geom_hline(yintercept = 0, color = "red") +
   theme_clean() +
+  theme(plot.background=element_blank()) +
   xlab('') +
   ylab('Coefficient Estimate (with 95% CI)')
 ```
 
-```{r callback_error_radiologist66, echo=F}
+Radiologist 34 should consider being more willing to recall patients between 50 and 59 years old and patients who have had a breast surgery or biopsy, both of which are significant at the 95% confidence level.
+
+```{r callback_error_radiologist66, warning=F, echo=F}
 # Radiologist 66
 logit_cancer66_model = glm(cancer ~ . , data=brca[brca$radiologist == 'radiologist66', 2:8], family=binomial)
 
@@ -356,11 +366,14 @@ ggplot(aes(x = label,
   geom_pointrange(aes(ymin = ci95_low, ymax = ci95_high)) +
   geom_hline(yintercept = 0, color = "red") +
   theme_clean() +
+  theme(plot.background=element_blank()) +
   xlab('') +
   ylab('Coefficient Estimate (with 95% CI)')
 ```
 
-```{r callback_error_radiologist89, echo=F}
+Radiologist 66 should consider being less willing to recall patients 70 or older or who are premenopausal, both of which are significant at the 90% confidence level.
+
+```{r callback_error_radiologist89, warning=F, echo=F}
 # Radiologist 89
 logit_cancer89_model = glm(cancer ~ . , data=brca[brca$radiologist == 'radiologist89', 2:8], family=binomial)
 
@@ -377,11 +390,14 @@ ggplot(aes(x = label,
   geom_pointrange(aes(ymin = ci95_low, ymax = ci95_high)) +
   geom_hline(yintercept = 0, color = "red") +
   theme_clean() +
+  theme(plot.background=element_blank()) +
   xlab('') +
   ylab('Coefficient Estimate (with 95% CI)')
 ```
 
-```{r cancer_error_radiologist95, echo=F}
+Radiologist 89 should consider being more willing to recall patients who are exhibiting symptoms of breast cancer, which is significant at the 95% confidence level.
+
+```{r cancer_error_radiologist95, warning=F, echo=F}
 # Radiologist 95
 logit_cancer95_model = glm(cancer ~ . , data=brca[brca$radiologist == 'radiologist95', 2:8], family=binomial)
 
@@ -398,15 +414,17 @@ ggplot(aes(x = label,
   geom_pointrange(aes(ymin = ci95_low, ymax = ci95_high)) +
   geom_hline(yintercept = 0, color = "red") +
   theme_clean() +
+  theme(plot.background=element_blank()) +
   xlab('') +
   ylab('Coefficient Estimate (with 95% CI)')
 ```
 
+Radiologist 95 has no clear way to improve his or her recall habits.
 
 # Predicting when articles go viral
 
-```{r setup, include=FALSE, message=FALSE, warning=FALSE}
-news<-read_csv("Desktop/Data Mining/Homework/DataScienceCourseHomework/Exercises-2/data/online_news.csv")
+```{r problem3setup, include=FALSE, message=FALSE, warning=FALSE}
+news<-read_csv("./data/online_news.csv")
 news$url<- NULL
 ```
 
@@ -471,7 +489,7 @@ confusion_out_logit = table(y = news1_test$viral, yhat = yhat_test_news_logit)
 
 ```
 
-```{r sample confusion matrix, message=FALSE, warning=FALSE}
+```{r sample confusion matrix, echo=FALSE, message=FALSE, warning=FALSE}
 confusion_out_logit
 ```
 
@@ -525,7 +543,7 @@ baseline_nvmatrix<-baseline_nonviral %>%
 baseline_m<-as.data.frame(baseline_nvmatrix)
 ```
 
-```{r baseline nonviral matrix,  results = 'asis'}
+```{r baseline nonviral matrix,  results = 'asis', echo=FALSE}
 stargazer(baseline_m, summary=FALSE, rownames=FALSE, type='html', title="Baseline Confusion Matrix", notes="Values are averaged over 100 train-test splits. Predicted values are columns, and actual values are rows. This baseline model guesses that all articles are not viral.")
 ```
 
@@ -629,7 +647,7 @@ logshares_matrix<- logshares_model %>%
 logshares_m<-as.data.frame(logshares_matrix)
 ```
 
-```{r log of shares matrix over 100 reps,  results = 'asis'}
+```{r log of shares matrix over 100 reps, echo=FALSE,  results = 'asis'}
 stargazer(logshares_m, summary=FALSE, rownames=FALSE, type='html', title="Log(Shares) Confusion Matrix", notes="Values are averaged over 100 train-test splits. Predicted values are columns, and actual values are rows.")
 ```
 
@@ -686,7 +704,7 @@ logit_matrix
 
 ```
 
-```{r logit model confusion matrix averages, results = 'asis'}
+```{r logit model confusion matrix averages, echo=FALSE , results = 'asis'}
 stargazer(logit_m, summary=FALSE, rownames=FALSE, type='html', title="Logit Confusion Matrix", notes="Values are averaged over 100 train-test splits. Predicted values are columns, and actual values are rows.")
 ```
 
