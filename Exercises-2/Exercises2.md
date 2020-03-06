@@ -262,7 +262,7 @@ history of breast surgery, presence of breast cancer symptoms, menopause
 and hormone therapy status, and breast density level, we can compare the
 relative conservatism of each of the doctors.
 
-![](exercises2_files/figure-gfm/radiologist_conservatism-1.png)<!-- -->
+![](Exercises2_files/figure-gfm/radiologist_conservatism-1.png)<!-- -->
 
 The figure above gives the coefficient estimates and 95% confidence
 interval (CI) for the radiologists, relative to radiologist 13. The
@@ -289,7 +289,7 @@ doctors as a group and for each doctor individually.
 We consider a logistic regression of cancer rate on whether the patient
 was recalled, the diagnosing radiologist, and patient characteristics.
 
-![](exercises2_files/figure-gfm/callback_error_group-1.png)<!-- -->
+![](Exercises2_files/figure-gfm/callback_error_group-1.png)<!-- -->
 
 The radiologists should consider being more willing to recall patients
 who are 70 or older and who have type 4 tissue density, which both have
@@ -304,34 +304,34 @@ radiologist. The plots below show the coefficient estimates that are
 significant at the 90%
 level.
 
-![](exercises2_files/figure-gfm/callback_error_radiologist13-1.png)<!-- -->
+![](Exercises2_files/figure-gfm/callback_error_radiologist13-1.png)<!-- -->
 
 Radiologist 13 should consider being more willing to recall patients
 between 50 and 59 years old, which is significant at the 90% confidence
 level.
 
-![](exercises2_files/figure-gfm/callback_error_radiologist34-1.png)<!-- -->
+![](Exercises2_files/figure-gfm/callback_error_radiologist34-1.png)<!-- -->
 
 Radiologist 34 should consider being more willing to recall patients
 between 50 and 59 years old and patients who have had a breast surgery
 or biopsy, both of which are significant at the 95% confidence
 level.
 
-![](exercises2_files/figure-gfm/callback_error_radiologist66-1.png)<!-- -->
+![](Exercises2_files/figure-gfm/callback_error_radiologist66-1.png)<!-- -->
 
 Radiologist 66 should consider being less willing to recall patients 70
 or older or who are premenopausal, both of which are significant at the
 90% confidence
 level.
 
-![](exercises2_files/figure-gfm/callback_error_radiologist89-1.png)<!-- -->
+![](Exercises2_files/figure-gfm/callback_error_radiologist89-1.png)<!-- -->
 
 Radiologist 89 should consider being more willing to recall patients who
 are exhibiting symptoms of breast cancer, which is significant at the
 95% confidence
 level.
 
-![](exercises2_files/figure-gfm/cancer_error_radiologist95-1.png)<!-- -->
+![](Exercises2_files/figure-gfm/cancer_error_radiologist95-1.png)<!-- -->
 
 Radiologist 95 has no clear way to improve his or her recall habits.
 
