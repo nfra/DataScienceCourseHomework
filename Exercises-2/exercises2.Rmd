@@ -8,13 +8,230 @@ output: github_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-# Exercise 1: Saratoga house prices
+```{r libraries, include=FALSE}
+library(tidyverse)
+library(mosaic)
+library(FNN)
+library(formula.tools)
+library(foreach)
+library(stargazer)
+```
+
+# Saratoga house prices
+```{r Exercise_1, include=FALSE, cache=TRUE}
+
+data(SaratogaHouses)
+
+# define rmse function
+rmse = function(y, yhat) {
+  sqrt( mean( (y - yhat)^2 ) )
+}
+
+# Try creating useful variables 
+#SaratogaHouses = mutate(SaratogaHouses, otherRooms = rooms - bedrooms)
+#SaratogaHouses = mutate(SaratogaHouses, usedSpace = livingArea/(lotSize*43560.04))
+#SaratogaHouses = mutate(SaratogaHouses, lnAge = log(age))
 
 
+rmse_vals_better = do(100)* {
+  
+  # splitting
+  n = nrow(SaratogaHouses)
+  n_train = round(0.8*n)  # round to nearest integer
+  n_test = n - n_train
+  train_cases = sample.int(n, n_train, replace=FALSE)
+  test_cases = setdiff(1:n, train_cases)
+  saratoga_train = SaratogaHouses[train_cases,]
+  saratoga_test = SaratogaHouses[test_cases,]
+  
+  # regressions
+  #regression from class
+  lm_medium2 = lm(price ~ . - sewer - waterfront - landValue - newConstruction, data=saratoga_train)
+  #attempted regressions to decrease RMSE
+  lm_better=lm(price ~ . -sewer - waterfront -landValue , data=saratoga_train)
+  #interaction of bedrooms,bathrooms, rooms and interaction of living area and new construction
+  lm_better_int=lm(price ~ sewer+ bedrooms*bathrooms*rooms +heating +fuel +pctCollege +lotSize + livingArea*newConstruction, data=saratoga_train)
+  #drop fuel variable and sewer, add waterfront, landValue, centralAir, and interact age with lotSize
+  lm_best=lm(price~ bedrooms*bathrooms*rooms + heating + livingArea*newConstruction + age*lotSize + waterfront + landValue + centralAir
+             , data=saratoga_train)
+  #lm_best duplicate test 
+  lm_best2=lm(price ~ bedrooms*bathrooms*rooms + heating + livingArea*newConstruction + age*lotSize + waterfront + landValue + centralAir 
+              , data=saratoga_train)
+  #stepwise selection model
+  lm_step =lm(formula = price ~ lotSize + age + livingArea + pctCollege +
+            bedrooms + fireplaces + bathrooms + rooms + heating + fuel +
+            centralAir + landValue + waterfront + newConstruction + livingArea:centralAir +
+            landValue:newConstruction + bathrooms:heating + livingArea:fuel +
+            pctCollege:fireplaces + lotSize:landValue + fuel:centralAir +
+            age:centralAir + age:pctCollege + livingArea:waterfront +
+            fireplaces:waterfront + fireplaces:landValue + livingArea:fireplaces +
+            bedrooms:fireplaces + pctCollege:landValue + bedrooms:waterfront +
+            bathrooms:landValue + heating:waterfront + rooms:heating +
+            bedrooms:heating + rooms:fuel, data = saratoga_train)
 
-# Exercise 2: A hospital audit
+  
+  # predictions
+  yhat_medium = predict(lm_medium2, saratoga_test)
+  yhat_better= predict(lm_better, saratoga_test)
+  yhat_better_int=predict(lm_better_int, saratoga_test)
+  yhat_best=predict(lm_best, saratoga_test)
+  yhat_best2=predict(lm_best2, saratoga_test)
+  yhat_step=predict(lm_step, saratoga_test)
 
+  
+  
+  c(rmse(saratoga_test$price, yhat_medium),
+    rmse(saratoga_test$price, yhat_better),
+    rmse(saratoga_test$price, yhat_better_int), 
+    rmse(saratoga_test$price, yhat_best),  
+    rmse(saratoga_test$price, yhat_best2),
+    rmse(saratoga_test$price, yhat_step)
+  )
+}
 
+colMeans(rmse_vals_better)
+which.min(colMeans(rmse_vals_better))
+baseline_rmse <- as.numeric(colMeans(rmse_vals_better)[1])
+best_rmse <- as.numeric(colMeans(rmse_vals_better)[5])
+step_rmse <- as.numeric(colMeans(rmse_vals_better)[6])
+#lm_best is the best performer here, and outperforms test 4 from previous attempts
 
-# Exercise 3: Predicting when articles go viral
+lmcall <- as.character(formula(lm_best))
+lmvars <- unlist(strsplit(gsub('price ~','',lmcall), '\\+'))
+drop_test <- c(NULL)
+for(i in lmvars){
+  curvar <- trimws(i)
+  
+  # Positive values are good, measures the benefit of including a given variable in the regression 
+  # (i.e. removing the variable is associated with a an average increase in RMSE of this amount)
+  rmse_var_val <- do(50)*{
+    # splitting again 
+    n = nrow(SaratogaHouses)
+    n_train = round(0.8*n)  # round to nearest integer
+    n_test = n - n_train
+    train_cases = sample.int(n, n_train, replace=FALSE)
+    test_cases = setdiff(1:n, train_cases)
+    saratoga_train = SaratogaHouses[train_cases,]
+    saratoga_test = SaratogaHouses[test_cases,]
+  
+    # Test best regression plus modified regression with 1 covariate removed
+    origmodel <- lm(as.formula(paste0(lmcall)), data = saratoga_train)
+    curmodel <- lm(as.formula(paste0(lmcall,'-',curvar)), data=saratoga_train)
+    
+    # predictions
+    yhat_orig = predict(origmodel, saratoga_test)
+    yhat_cur = predict(curmodel, saratoga_test)
+    c(-rmse(saratoga_test$price, yhat_orig)+rmse(saratoga_test$price, yhat_cur))
+  }
+  drop_test <- append(drop_test, paste0(curvar,': ',as.numeric(colMeans(rmse_var_val))))
+}
+
+# drop_test
+var_entry_list <- NULL
+var_value_list <- NULL
+i=1
+for (ent in drop_test) {
+  var_entry <- trimws(unlist(strsplit(drop_test[i],':'))[1])
+  var_value <- as.numeric(unlist(strsplit(drop_test[i],':'))[2])
+  var_entry_list[i] <- var_entry
+  var_value_list[i] <- var_value
+  i <- i + 1
+  
+}
+
+drop_test_frame <- do.call(rbind, Map(data.frame, Dropped_Term=var_entry_list, RMSE_Impact=var_value_list))
+#KNN using the stepwise selected vars
+rmse_vals_knn = do(100)* {
+  
+  # splitting
+  n = nrow(SaratogaHouses)
+  n_train = round(0.8*n)  # round
+  n_test = n - n_train
+  train_cases = sample.int(n, n_train, replace=FALSE)
+  test_cases = setdiff(1:n, train_cases)
+  saratoga_train = SaratogaHouses[train_cases,]
+  saratoga_test = SaratogaHouses[test_cases,]
+  
+  
+  #bedrooms*bathrooms*rooms + heating + livingArea*newConstruction + age*lotSize + waterfront + landValue + centralAir
+  xtrain = model.matrix(~ livingArea + landValue + bathrooms + waterfront + newConstruction +  heating + 
+                          lotSize + age + centralAir + rooms + bedrooms -1, data=saratoga_train)
+  xtest = model.matrix(~ livingArea + landValue + bathrooms + waterfront + newConstruction +  heating + 
+                         lotSize + age + centralAir + rooms + bedrooms -1, data=saratoga_test)
+  
+  # training and testing set responses
+  ytrain = saratoga_train$price
+  ytest = saratoga_test$price
+  
+  # rescale
+  scale_train = apply(xtrain, 2, sd) # calculate std dev for each column
+  xtrain_scaled = scale(xtrain, scale = scale_train)
+  xtest_scaled = scale(xtest, scale=scale_train)
+  # regressions for different values of K
+  k_grid = seq(2, 51)
+  rmse_grid = foreach(K = k_grid, .combine='c') %do% {
+    knn_model_K = knn.reg(xtrain_scaled, xtest_scaled, ytrain, k=K)
+    rmse(ytest, knn_model_K$pred)} 
+}
+
+# colMeans(rmse_vals_knn)
+# which.min(colMeans(rmse_vals_knn))
+# min(colMeans(rmse_vals_knn))
+
+knn_rmse <- min(colMeans(rmse_vals_knn))                    
+
+KNN_RMSE_Means<-colMeans(rmse_vals_knn)
+
+plot(k_grid, KNN_RMSE_Means)
+k_grid
+knn_plot <- 
+  ggplot() +
+  geom_point(aes(x = k_grid, y = KNN_RMSE_Means)) + 
+  geom_hline(yintercept = knn_rmse, color = 'red') + 
+  geom_text(aes(0,knn_rmse,label = 'Minimum RMSE of KNN', vjust = 1.4, hjust = 0), color = 'red') + 
+  geom_hline(yintercept = best_rmse, color = 'blue') + 
+  geom_text(aes(0,best_rmse,label = 'Avg. RMSE of Best Hand-Built OLS', vjust = -.4, hjust = 0), color = 'blue') + 
+  geom_hline(yintercept = step_rmse, color = 'dark green') + 
+  geom_text(aes(0,step_rmse,label = 'Avg. RMSE of Best Step-Selected OLS', vjust = -.4, hjust = 0), color = 'dark green')+
+  geom_hline(yintercept = baseline_rmse, color = 'dark orange') + 
+  geom_text(aes(0,baseline_rmse,label = 'Avg. RMSE of Baseline OLS', vjust = -.4, hjust = 0), color = 'dark orange') + 
+  labs(x='K Values')+ 
+  labs(y='RMSE')+
+  ggtitle('KNN Fit on House Price Data')
+            
+knn_plot
+
+```
+In order to predict the market values of properties in the Saratoga, NY market, our team developed several different models based on the available data. We then iteratively scored the performance of our models and implemented various alterations to try to improve each of the models' predictive ability. While we will not delve into many of the technical details of our analysis in this report, it is important to give a brief description of the primary measure that we used to evaluate model performance. This metric, called 'Root Mean-Squared Error' (RMSE), reports an average difference of the value predicted by our model compared to the actual value of the property. The main goal of our work was to minimize this value. 
+
+To start, our team ran a linear regression on a selection of covariates that we strongly suspected would have a significant impact on the market value of a given property. This regression served as the baseline for further analysis; different variables and interaction terms were subsequently added or removed, and the predictive accuracy was re-measured according to the RMSE metric. To rank the relative importance of terms in our final hand-built model, we then individually dropped each of the terms from the regression, re-ran it, then compared the model's performance without a given covariate to its performance with the covariate included. This process yielded several mostly intuitive conclusions; the most important variables to include in our model were the underlying land value, the living area interacted with whether a property was newly built, waterfront status, and room characteristics (with interactions). These results can be seen in the table below. Additionally, the RMSE of the original model was lower than each of the models with one excluded term, which verified that all terms in our regression were positively contributing to our goal of reducing the overall RMSE.
+
+```{r e1_table, echo=FALSE, results='asis'}
+
+stargazer(drop_test_frame[order(drop_test_frame$RMSE_Impact, decreasing = TRUE),], summary = FALSE, type = 'html', rownames = FALSE, title = 'RMSE Impact of Excluding Specified Terms in Linear Regression', no.space = TRUE)
+
+``` 
+
+After we had improved linear regression model as much as possible manually, we also then proceeded to implement an automated stepwise variable selection process, which mechanically considered all pairwise combinations of covariates in the dataset and included all that would be beneficial to model performance. While it didn't reveal any new significant insights, it did slightly improve performance compared to the manually built model. 
+
+Lastly, our team implemented a k-nearest neighbors model with the covariates from our best hand-built linear model. While the optimal k-nearest neighbors model significantly outperformed the baseline linear regression model, it didn't outperform the best hand-built linear model or stepwise linear model. This can be seen in the figure below, which shows the average RMSE values across all values of k and also compares them to the RMSE values of the other models we tested. (A technical note: the average RMSE of the linear models and the average RMSE of the k-nearest neighbor models were calculated using different sets of random samples from the overall data. While it is typically not optimal to compare performance across different sets of random samples, this issue is alleviated by averaging across a large number of random samples within each set, which we do in our analysis.)
+
+```{r e1_results, echo=FALSE}
+knn_plot
+```
+
+For tax-assessing purposes, the main takeaways from our analysis are clear. Obtaining accurate information about land value, basic house characteristics, and geographic location are all key for forming the best predictive models. Even with this information, however, the RMSE values of our best models are still relatively high (on the order of tens of thousands of dollars). It is unclear on if this is an acceptable level of error for the purposes of tax assessment, though the models would likely yield more accurate results if more data can be obtained. At the very least, these models can serve as a general guideline for aiding in assessment, even if they cannot be completely trusted to come up with true market values by themselves.
+
+# A hospital audit
+
+## Systematic differences in recall rate among radiologists
+
+## Systematic error in recall rate
+
+### Among all radiologists
+
+### For each radiologist
+
+# Predicting when articles go viral
+
 
