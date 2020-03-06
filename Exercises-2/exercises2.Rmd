@@ -14,6 +14,14 @@ knitr::opts_chunk$set(echo = TRUE)
 
 # Exercise 2: A hospital audit
 
+## Systematic differences in recall rate among radiologists
+
+## Systematic error in recall rate
+
+### Among all radiologists
+
+### For each radiologist
+
 
 
 # Exercise 3: Predicting when articles go viral
