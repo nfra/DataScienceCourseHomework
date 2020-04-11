@@ -1,0 +1,16 @@
+---
+title: "Exercises 3"
+output: github_document
+---
+
+```{r setup, include=FALSE}
+
+```
+
+## Exercise 1: Predictive pricing model for green buildings
+
+## Exercise 2: Crime and policing
+
+## Exercise 3: PCA wine analysis
+
+## Exercise 4: Twitter market segmentation
