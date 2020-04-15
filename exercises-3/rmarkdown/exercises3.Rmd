@@ -11,6 +11,6 @@ output: github_document
 
 ## Exercise 2: Crime and policing
 
-## Exercise 3: PCA wine analysis
+## Exercise 3: Wine analysis
 
 ## Exercise 4: Twitter market segmentation
