@@ -67,13 +67,13 @@ ggplot(data = pc_wine_graph_data) +
   theme(plot.background=element_blank())
 ```
 
-However, one can see in the next two plots that the second and third principle components tend to decrease along with the quality score. (Note that the direction may change, since PCA chooses direction arbitrarily. I have set the seed to be able to replicate the same findings.)
+However, one can see in the next two box plots that the second and third principle components tend to decrease along with the quality score. (Note that the direction may change, since PCA chooses direction arbitrarily. I have set the seed to be able to replicate the same findings.)
 
 ```{r pca_box_score_pc2, echo=FALSE}
 ggplot(data = pc_wine_graph_data) +
   geom_boxplot(aes(x = as.factor(score), y = PC2)) +
-  xlab("Principal Component 2") +
-  ylab("Quality Score (/10)") + 
+  xlab("Quality Score (/10)") +
+  ylab("Principal Component 2") + 
   theme_clean() +
   theme(plot.background=element_blank())
 ```
@@ -81,8 +81,8 @@ ggplot(data = pc_wine_graph_data) +
 ```{r pca_box_score_pc3, echo=FALSE}
 ggplot(data = pc_wine_graph_data) +
   geom_boxplot(aes(x = as.factor(score), y = PC3)) +
-  xlab("Principal Component 3") +
-  ylab("Quality Score (/10)") +  
+  xlab("Quality Score (/10)") +
+  ylab("Principal Component 3") +  
   theme_clean() +
   theme(plot.background=element_blank())
 ```
