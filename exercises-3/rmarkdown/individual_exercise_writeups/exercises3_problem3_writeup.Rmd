@@ -9,6 +9,8 @@ library(ggthemes)
 library(LICORS)
 library(knitr)
 
+set.seed(484629)
+
 # read data
 setwd("~/UT Courses/3. Spring 2019/Data Mining, Statistical Learning/Homework/DataScienceCourseHomework/exercises-3")
 wine_data = read.csv("./data/wine.csv")
@@ -21,7 +23,7 @@ wine_color = wine_data[,13]
 # standardize data
 wine_x_st = scale(wine_x)
 ```
-In this exercise, we analyze data on the chemical properties of 6500 different bottles of *vinho verde* wine from northern Portugal. We compare principal component analysis (PCA) and K-means++ clustering to choose a method that easily distinguishes between red and white wine. We further investigate the ability of each method to sort higher quality wines from lower quality wines. We find that K-means++ is better for the application of distinguishing white wine from red but that PCA captures more information about wine quality.
+In this exercise, we analyze data on eleven chemical properties of 6500 different bottles of *vinho verde* wine from northern Portugal. We compare principal component analysis (PCA) and K-means++ clustering to choose a method that easily distinguishes between red and white wine. We further investigate the ability of each method to sort higher quality wines from lower quality wines. We find that K-means++ is better for the application of distinguishing white wine from red but that PCA captures more information about wine quality.
 
 ### PCA
 
@@ -35,6 +37,17 @@ pc_wine_graph_data$score = wine_score
 pc_wine_graph_data$color = wine_color
 ```
 
+Running the PCA algorithm and plotting the first two principal components, we find the figure below. It has two relatively well-defined clusters: one centered at roughly (-2.5, 1) and the other centered at roughly (1, 0).
+
+```{r pca_scatter, echo=FALSE}
+ggplot(data = pc_wine_graph_data) +
+  geom_point(aes(x = PC1, y = PC2), alpha = 1/5) +
+  theme_clean() +
+  theme(plot.background=element_blank())
+```
+
+In the figure below, the points have been colored according to the color of the corresponding wine. (To be clear, this information was not used in the PCA calculation.) This figure shows that primary components 1 and 2 successfully separates white wine from red.
+
 ```{r pca_scatter_color, echo=FALSE}
 ggplot(data = pc_wine_graph_data) +
   geom_point(aes(x = PC1, y = PC2, color = color), alpha = 1/4) +
@@ -43,30 +56,24 @@ ggplot(data = pc_wine_graph_data) +
   scale_color_manual(values = c("#722f37", "#eccd13"))
 ```
 
-```{r pca_box_color, echo=FALSE}
-ggplot(data = pc_wine_graph_data) +
-  geom_boxplot(aes(x = color, y = PC1)) +
-  theme_clean() +
-  theme(plot.background=element_blank())
-```
+Unfortunately, PCA alone gives us no algorithmic way to say which observations should belong to each cluster. That would require a clustering algorithm.
+
+In the figure below, the second and third principle components are plotted with the points now colored according to the quality score. (This information was not used in the PCA calculation either.) Obviously, this scatter plot does not have apparent clusters corresponding to each quality score.
 
 ```{r pca_scatter_score, echo=FALSE}
 ggplot(data = pc_wine_graph_data) +
-  geom_point(aes(x = PC1, y = PC2, color = as.factor(score))) +
+  geom_point(aes(x = PC2, y = PC3, color = as.factor(score))) +
   theme_clean() +
   theme(plot.background=element_blank())
 ```
 
-```{r pca_box_score_pc1, echo=FALSE}
-ggplot(data = pc_wine_graph_data) +
-  geom_boxplot(aes(x = as.factor(score), y = PC1)) +
-  theme_clean() +
-  theme(plot.background=element_blank())
-```
+However, one can see in the next two plots that the second and third principle components tend to decrease along with the quality score. (Note that the direction may change, since PCA chooses direction arbitrarily. I have set the seed to be able to replicate the same findings.)
 
 ```{r pca_box_score_pc2, echo=FALSE}
 ggplot(data = pc_wine_graph_data) +
   geom_boxplot(aes(x = as.factor(score), y = PC2)) +
+  xlab("Principal Component 2") +
+  ylab("Quality Score (/10)") + 
   theme_clean() +
   theme(plot.background=element_blank())
 ```
@@ -74,6 +81,8 @@ ggplot(data = pc_wine_graph_data) +
 ```{r pca_box_score_pc3, echo=FALSE}
 ggplot(data = pc_wine_graph_data) +
   geom_boxplot(aes(x = as.factor(score), y = PC3)) +
+  xlab("Principal Component 3") +
+  ylab("Quality Score (/10)") +  
   theme_clean() +
   theme(plot.background=element_blank())
 ```
@@ -84,6 +93,8 @@ pca_table = pc_wine_graph_data %>%
   summarize(mean.PC1 = mean(PC1), mean.PC2 = mean(PC2), mean.PC3 = mean(PC3))
 ```
 
+We can therefore say that PCA has some capability to sort the lower quality from the higher quality wines.
+
 ### K-Means++
 
 ```{r k_meanspp_color, echo=FALSE}
@@ -92,6 +103,8 @@ wine_cluster_color = kmeanspp(wine_x_st, k=2, nstart=50)
 cluster_wine_data = wine_data
 cluster_wine_data$two_clusters = wine_cluster_color$cluster
 ```
+
+Now, we try running the K-means++ algorithm with K = 2, corresponding to the two colors of the wines. We can look at a "confusion matrix" where the "prediction" is not actually a prediction but an unsupervised cluster assignment. This is shown in Table 1.
 
 ```{r results='asis', echo=FALSE}
 table_color = table(color = cluster_wine_data$color, 
@@ -102,18 +115,59 @@ knitr::kable(table_color,
              col.names = c("Cl 1", "Cl 2"))
 ```
 
-```{r k_meanspp_score, echo=FALSE}
-wine_cluster_score = kmeanspp(wine_x_st, k=7, nstart=100)
+This is really effective! The error rate is only (24+68)/6497 = 0.014.
 
-cluster_wine_data$seven_clusters = wine_cluster_score$cluster
+```{r k_meanspp_score, echo=FALSE}
+wine_cluster_score_3 = kmeanspp(wine_x_st, k=3, nstart=100)
+wine_cluster_score_4 = kmeanspp(wine_x_st, k=4, nstart=100)
+wine_cluster_score_5 = kmeanspp(wine_x_st, k=5, nstart=100)
+wine_cluster_score_6 = kmeanspp(wine_x_st, k=6, nstart=100)
+wine_cluster_score_7 = kmeanspp(wine_x_st, k=7, nstart=100)
+
+cluster_wine_data$three_clusters = wine_cluster_score_3$cluster
+cluster_wine_data$four_clusters = wine_cluster_score_4$cluster
+cluster_wine_data$five_clusters = wine_cluster_score_5$cluster
+cluster_wine_data$six_clusters = wine_cluster_score_6$cluster
+cluster_wine_data$seven_clusters = wine_cluster_score_7$cluster
 ```
 
-```{r results='asis', echo=FALSE}
-table_score = table(score = cluster_wine_data$quality, 
-                    cluster = cluster_wine_data$seven_clusters)
-knitr::kable(table_score,
-             caption = "Table 2: Cluster (horizontal) vs. quality score (vertical)",
-             col.names = c("Cl 1", "Cl 2", "Cl 3", "Cl 4", "Cl 5", "Cl 6", "Cl 7"))
+If we instead try to cluster with higher K-values, we find little of interest. It's not even clear which cluster might correspond to each quality level, as shown in the violin plots below. (Note that "quality score" is not a continuous variable. The violin plot interpolates values between the integer values that the variable actually takes.)
+
+```{r k_meanspp_score_violin, echo=FALSE}
+ggplot(data = cluster_wine_data) +
+  geom_violin(aes(x = as.factor(three_clusters), y = quality)) +
+  xlab("Three Clusters") +
+  ylab("Quality Score (/10)") +
+  theme_clean() +
+  theme(plot.background=element_blank())
+ggplot(data = cluster_wine_data) +
+  geom_violin(aes(x = as.factor(four_clusters), y = quality)) +
+  xlab("Four Clusters") +
+  ylab("Quality Score (/10)") +
+  theme_clean() +
+  theme(plot.background=element_blank())
+ggplot(data = cluster_wine_data) +
+  geom_violin(aes(x = as.factor(five_clusters), y = quality)) +
+  xlab("Five Clusters") +
+  ylab("Quality Score (/10)") +
+  theme_clean() +
+  theme(plot.background=element_blank())
+ggplot(data = cluster_wine_data) +
+  geom_violin(aes(x = as.factor(six_clusters), y = quality)) +
+  xlab("Six Clusters") +
+  ylab("Quality Score (/10)") +  
+  theme_clean() +
+  theme(plot.background=element_blank())
+ggplot(data = cluster_wine_data) +
+  geom_violin(aes(x = as.factor(seven_clusters), y = quality)) +
+  xlab("Seven Clusters") +
+  ylab("Quality Score (/10)") +  
+  theme_clean() +
+  theme(plot.background=element_blank())
 ```
 
 ### Which is better here?
+
+The decision of which is better ultimately depends on the purpose of this dimensionality-reduction technique. If the purpose is to classify wines as "red" or "white" in an unsupervised manner, then K-means++ is better. If the purpose is to predict the color or quality of an unknown wine, then PCA (in addition to some sort of supervised classification algorithm such as classification trees or OLS regression) is better.
+
+Neither method is particularly useful for unsupervised sorting of wines into higher or lower quality. 
