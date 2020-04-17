@@ -1,6 +1,7 @@
 library(tidyverse)
 library(ggthemes)
 library(LICORS)
+library(mosaic)
 
 # read data
 wine_data = read.csv("./data/wine.csv")
@@ -32,14 +33,45 @@ ggplot(data = pc_wine_graph_data) +
   geom_point(aes(x = PC1, y = PC2, color = color), alpha = 1/4) +
   theme_clean() +
   theme(plot.background=element_blank()) +
-  scale_color_manual(values = c("#722f37", "#eccd13")) 
-  
+  scale_color_manual(values = c("#722f37", "#eccd13"))
+
+ggplot(data = pc_wine_graph_data) +
+  geom_boxplot(aes(x = color, y = PC1)) +
+  theme_clean() +
+  theme(plot.background=element_blank())
+
 
 # graph with points colored by wine score
 ggplot(data = pc_wine_graph_data) +
-  geom_point(aes(x = PC1, y = PC2, color = as.factor(score)), alpha = 1/4) +
+  geom_point(aes(x = PC2, y = PC1, color = as.factor(score))) +
   theme_clean() +
   theme(plot.background=element_blank())
+
+ggplot(data = pc_wine_graph_data) +
+  geom_boxplot(aes(x = as.factor(score), y = PC1)) +
+  theme_clean() +
+  theme(plot.background=element_blank())
+
+ggplot(data = pc_wine_graph_data) +
+  geom_boxplot(aes(x = as.factor(score), y = PC2)) +
+  theme_clean() +
+  theme(plot.background=element_blank())
+
+ggplot(data = pc_wine_graph_data) +
+  geom_boxplot(aes(x = as.factor(score), y = PC3)) +
+  theme_clean() +
+  theme(plot.background=element_blank())
+
+pc_wine_graph_data %>%
+  group_by(score) %>%
+  summarize(mean.PC1 = mean(PC1), mean.PC2 = mean(PC2), mean.PC3 = mean(PC3))
+
+ggplot(data = pc_wine_graph_data) +
+  geom_boxplot(aes(x = as.factor(score), y = PC3)) +
+  theme_clean() +
+  theme(plot.background=element_blank())
+
+
 
 
 
