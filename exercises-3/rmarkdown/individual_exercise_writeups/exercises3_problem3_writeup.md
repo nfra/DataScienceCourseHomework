@@ -41,7 +41,7 @@ score.
 
 ![](exercises3_problem3_writeup_files/figure-gfm/pca_scatter_score-1.png)<!-- -->
 
-However, one can see in the next two plots that the second and third
+However, one can see in the next two box plots that the second and third
 principle components tend to decrease along with the quality score.
 (Note that the direction may change, since PCA chooses direction
 arbitrarily. I have set the seed to be able to replicate the same
