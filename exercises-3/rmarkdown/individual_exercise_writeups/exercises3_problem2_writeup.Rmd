@@ -5,7 +5,7 @@ output: github_document
 
 ### Question 1
 
-We can't simply run the regression of "crime" on "police" to estimate the effect of the number of police on the crime rate because the selection of policing level is endogenous. That is, governmental decision makers can and do decide how much money to spend on policing in a locality based on its crime rate.
+We can't simply run the regression of "crime" on "police" to estimate the effect of the number of police on the crime rate because the selection of policing level is endogenous. That is, governmental decision-makers can and do decide how much money to spend on policing in a locality based on its crime rate.
 
 The ability to select the level of policing introduces selection bias that prevents a consistent estimate of the effect of policing on crime.
 
