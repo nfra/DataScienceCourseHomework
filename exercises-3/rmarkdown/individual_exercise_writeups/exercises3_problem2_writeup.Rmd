@@ -28,6 +28,10 @@ From the podcast transcript:
 
 "Why did they have to control for Metro ridership? What was that trying to capture?"
 
+> "You know, actually, in that vein, one of the things they considered was is it possible that tourists were less likely to visit Washington or to go out and about on...
+>
+> "So there are fewer victims, and you know what they did? They checked that hypothesis by looking at ridership levels on the Metro system, and they actually were not diminished on high-terror days, so they suggested the number of victims was largely unchanged."
+
 ### Question 4
 
 "Below I am showing you "Table 4" from the researchers' paper. Just focus on the first column of the table. Can you describe the model being estimated here? What is the conclusion?"
