@@ -13,27 +13,30 @@ The ability to select the level of policing introduces selection bias that preve
 
 "How were the researchers from UPenn able to isolate this effect? Briefly describe their approach and discuss their result in the “Table 2” below, from the researchers' paper."
 
-From the podcast transcript: 
+In the 2005 article "Using Terror Alert Levels to Estimate the Effect of Police on Crime", Jonathan Klick and Alexander Tabarrok were able to isolate the effect of policing on crime by identifying and examining a situation in which the number of police in a locality is changed for reasons unrelated to crime in that area. They identified just such a situation: Washington, D.C., during a heightened terrorism alert level. By law, if the Homeland Security Advisory System increases the color-coded terrorism threat advisory scale to "orange", extra police officers are  placed on the National Mall and throughout the rest of Washington.
 
-> "We need to find an example where we get a lot of police for reasons unrelated to crime. Now, that you would think is a relatively rare occurrence. Why in the world would you create a lot of police if you didn't have a lot of crime? And they happened upon - and this is what great researchers do - the terrorism alert system. So you know all those colors, orange, red, whatever else they are. By law, because Washington, D.C., is likely to be a terrorism target, when the terror alert level goes to orange, then extra police are put on the Mall and other parts of Washington to protect against terrorists. It has nothing to do with street crime or things like that.
->  
-> "So they could then ask, on orange alert days when there are extra police on the streets for reasons unrelated to street crime, what happens to street crime? Does it go down? And in fact, it does. It turns out that when you have the extra police there for terrorism-related reasons, they're on the streets, they make the streets safer, and things like murder, robbery, assault go down."
+The researchers then examined what happens to street crime when the number of police is increased during these periods of orange-alert. They found that the rate of things like murder, robbery, and assault decreased. Referring to the table (reproduced from the paper) below, we can see the surge of police on crime is estimated to have reduced the daily number of crimes in Washington by about 7 in column (1) (not controlling for variation in METRO ridership). 
 
-![Table 2](ex3table2.png)
+
+![Table 2](../../figures/ex3table2.png)
 
 
 
 
 ### Question 3
 
-"Why did they have to control for Metro ridership? What was that trying to capture?"
+The paper in question used an "instrumental variable" (IV) research design, where the instrument is whether the day had a high alert. One assumption that must be true for an IV research design to consistently estimate a causal effect is the "exclusion restriction" -- that is, there can be no direct effect of the instrument on the dependent variable or any effect running through omitted variables.
 
-> "You know, actually, in that vein, one of the things they considered was is it possible that tourists were less likely to visit Washington or to go out and about on...
->
-> "So there are fewer victims, and you know what they did? They checked that hypothesis by looking at ridership levels on the Metro system, and they actually were not diminished on high-terror days, so they suggested the number of victims was largely unchanged."
+In this case, one can hypothesize that the instrument may have an effect running through an omitted variable. If the high alert reduces the number of tourists in Washington, it may suppress crime by diminishing the pool of possible victims. Klick and Tabarrok use Metro ridership as a measure of tourism, and control for that in column (2) of the table above. The causal estimate is reduced in that regression to a decrease of about 6 in the number of crimes per day. 
+
+In their paper, Klick and Tabarrok actually argue against the idea that they have to control for Metro ridership:
+
+>"We are skeptical of the latter explanation on theoretical grounds because holding all else equal, daily crime is unlikely to vary significantly based on the number of daily visitors. The vast majority of visitors to Washington D.C. are never the victim of a crime.  Since there are far more visitors than crimes it seems unlikely that the number of visitors constrains the number of crimes."
 
 ### Question 4
 
 "Below I am showing you "Table 4" from the researchers' paper. Just focus on the first column of the table. Can you describe the model being estimated here? What is the conclusion?"
+
+
 
 ![Table 4](ex3table4.png)
