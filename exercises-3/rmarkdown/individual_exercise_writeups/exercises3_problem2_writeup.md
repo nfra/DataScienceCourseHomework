@@ -14,10 +14,6 @@ that prevents a consistent estimate of the effect of policing on crime.
 
 ### Question 2
 
-“How were the researchers from UPenn able to isolate this effect?
-Briefly describe their approach and discuss their result in the “Table
-2” below, from the researchers’ paper."
-
 In the 2005 article “Using Terror Alert Levels to Estimate the Effect of
 Police on Crime”, Jonathan Klick and Alexander Tabarrok were able to
 isolate the effect of policing on crime by identifying and examining a
@@ -32,9 +28,9 @@ Washington.
 The researchers then examined what happens to street crime when the
 number of police is increased during these periods of orange-alert. They
 found that the rate of things like murder, robbery, and assault
-decreased. Referring to the table (reproduced from the paper) below, we
-can see the surge of police on crime is estimated to have reduced the
-daily number of crimes in Washington by about 7 in column (1) (not
+decreased. Referring to the first column of the table (reproduced from
+the paper) below, we can see the surge of police on crime is estimated
+to have reduced the daily number of crimes in Washington by about 7 (not
 controlling for variation in METRO ridership).
 
 ![Table 2](../../figures/ex3table2.png)
@@ -52,9 +48,9 @@ In this case, one can hypothesize that the instrument may have an effect
 running through an omitted variable. If the high alert reduces the
 number of tourists in Washington, it may suppress crime by diminishing
 the pool of possible victims. Klick and Tabarrok use Metro ridership as
-a measure of tourism, and control for that in column (2) of the table
-above. The causal estimate is reduced in that regression to a decrease
-of about 6 in the number of crimes per day.
+a measure of tourism, and control for that in the second column of the
+table above. The causal estimate is reduced in that regression to a
+decrease of about 6 in the number of crimes per day.
 
 In their paper, Klick and Tabarrok actually argue against the idea that
 they have to control for Metro ridership:
@@ -68,8 +64,11 @@ they have to control for Metro ridership:
 
 ### Question 4
 
-“Below I am showing you”Table 4" from the researchers’ paper. Just focus
-on the first column of the table. Can you describe the model being
-estimated here? What is the conclusion?"
+The model being estimated in the first column of the table below allows
+for the effect of policing to vary between District 1 (home to the
+city’s business and political center) and the rest of Washington, also
+controlling for Metro ridership. It uses heteroskedasticity-robust (or
+White-Huber) standard errors. The estimate from this model is that the
+extra policing reduces the number of daily crimes by about 2.6.
 
-![Table 4](ex3table4.png)
+![Table 4](../../figures/ex3table4.png)
