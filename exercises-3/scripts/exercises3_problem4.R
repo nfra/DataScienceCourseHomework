@@ -85,7 +85,7 @@ colnames(size_tab) <- c('size')
 size_tab$cluster <- factor(row.names(size_tab), levels = c('1','2','3','4','5','6','7','8','9','10','11','12','13'), ordered = TRUE) 
 size_tab$cluster_ro <- size_tab$cluster %>% fct_reorder(size_tab$size)
 
-kmm_bar <-
+km_bar <-
   ggplot() + 
   geom_col(data = size_tab, aes(x = cluster_ro, y = size, fill = cluster)) + 
   geom_text(data = size_tab, aes(x = cluster_ro, y = size, label = size), check_overlap = FALSE, hjust = -0.05) + 
@@ -95,7 +95,7 @@ kmm_bar <-
   ylab('Users in Cluster')+
   coord_flip()
 
-kmm_bar
+km_bar
 
 # What are the important categories for each cluster (for what categories do they have dev >1 or <-1 from norm)
 import_cat <- t(kmpp$center*((abs(kmpp$center)>sig_level)*1))
@@ -147,17 +147,17 @@ colnames(hc_size_tab) <- c('size')
 hc_size_tab$cluster <- factor(row.names(size_tab), levels = c('1','2','3','4','5','6','7','8','9','10','11','12','13'), ordered = TRUE) 
 hc_size_tab$cluster_ro <- hc_size_tab$cluster %>% fct_reorder(hc_size_tab$size)
 
-hc_kmm_bar <-
+hc_bar <-
   ggplot() + 
   geom_col(data = hc_size_tab, aes(x = cluster_ro, y = size, fill = cluster)) + 
   geom_text(data = hc_size_tab, aes(x = cluster_ro, y = size, label = size), check_overlap = FALSE, hjust = -0.05) + 
   scale_fill_discrete() + 
   ggtitle('Hierarchical Cluster Sizes') +
   blank_theme + 
-  ylab('Users in Cluster')+
+  ylab('Users in Cluster') +
   coord_flip()
 
-hc_kmm_bar
+hc_bar
 
 # More data wrangling
 hc_import_cat <- hc_sm_grouped %>% select(-starts_with('cname'))

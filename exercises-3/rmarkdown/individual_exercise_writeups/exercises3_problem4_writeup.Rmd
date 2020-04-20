@@ -1,5 +1,5 @@
 ---
-title: "Exercise 4"
+title: "Problem 4"
 output: github_document
 ---
 
@@ -7,24 +7,213 @@ output: github_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-## GitHub Documents
 
-This is an R Markdown format used for publishing markdown documents to GitHub. When you click the **Knit** button all R code chunks are run and a markdown file (.md) suitable for publishing to GitHub is generated.
+```{r code, include=FALSE}
+library(mosaic)
+library(tidyverse)
+library(data.table)
+library(LICORS)
+library(cluster)
+library(factoextra)
+library(RColorBrewer)
 
-## Including Code
+# get the data & clean/process
+sm_data <- read.csv("../../data/social_marketing.csv", header=TRUE) %>%
+  select(-c(X)) %>%
+  mutate(
+    num_tweets = rowSums(.[,])
+    ) 
+ntv <- sm_data$num_tweets
+sm_data <- sm_data / ntv 
+sm_data$num_tweets <- ntv 
 
-You can include R code in the document as follows:
+sm_data <- sm_data %>% scale(center=TRUE, scale=TRUE)
 
-```{r cars}
-summary(cars)
+# save scales, might use them later
+mu <- attr(sm_data,"scaled:center")
+sigma <- attr(sm_data,"scaled:scale")
+
+#set seed for reproducibility
+set.rseed(63)
+
+# take a random sample for calculating gap
+N = nrow(sm_data)
+samp_frac = 0.2
+N_samp = floor(samp_frac*N)
+samp_ind = sample.int(N, N_samp, replace=FALSE) %>% sort
+sm_samp = sm_data[samp_ind,]
+
+# K means gap statistic calculation
+sm_km_gap <- clusGap(sm_samp, FUN = kmeans, nstart = 25, K.max = 25, B = 50)
+plot(sm_km_gap)
+
+# Calculate K-means++
+kmpp <- kmeanspp(sm_data, k=13, nstart=50)
+
+# Data cleaning/manipulation 
+cname <- rownames(t(kmpp$center))
+kmpp_pre_t <- kmpp$center
+kmpp_res_t <- as.data.table(cbind(cname = cname, t(kmpp_pre_t))) %>%
+  mutate(
+    cname = as.factor(cname)
+  )
+kmpp_res_t$cname <- kmpp_res_t$cname %>% fct_reorder(min_rank(kmpp_res_t$cname),.desc = TRUE)
+plot_data <- melt(kmpp_res_t, id.vars = 'cname')
+
+# Choose a significance level (in std. devs.) for distinguising key characteristics of each cluster
+sig_level <- 1
+
+# Std. Dev plot by category/cluster
+km_dev_plot <- ggplot() +
+  geom_point(data=plot_data, aes(x=cname, y=as.double(value), color = variable), size = 4, alpha = .8) +
+  labs(title = 'K-Means++ Diverging Dot Plot', subtitle = 'Normalized distribution by variable') +
+  ylab('Standard Deviations from Mean') + 
+  xlab('') + 
+  guides(color=guide_legend(title="Cluster")) + 
+  theme_minimal() + 
+  geom_hline(yintercept = sig_level, color = 'red', linetype = 'dashed') +
+  geom_hline(yintercept = -sig_level, color = 'red', linetype = 'dashed') +
+  scale_color_discrete() + 
+  coord_flip()
+
+km_dev_plot
+
+# Visualize the cluster sizes 
+blank_theme <- theme_minimal() +
+  theme(
+    axis.title.x = element_blank(),
+    axis.title.y = element_blank(),
+    axis.text.x = element_blank(),
+    axis.text.y = element_blank(),
+    panel.border = element_blank(),
+    panel.grid=element_blank(),
+    axis.ticks = element_blank(),
+    plot.title=element_text(size=14, face="bold")
+  )
+
+size_tab <- as.data.table(kmpp$size) 
+colnames(size_tab) <- c('size')
+size_tab$cluster <- factor(row.names(size_tab), levels = c('1','2','3','4','5','6','7','8','9','10','11','12','13'), ordered = TRUE) 
+size_tab$cluster_ro <- size_tab$cluster %>% fct_reorder(size_tab$size)
+
+km_bar <-
+  ggplot() + 
+  geom_col(data = size_tab, aes(x = cluster_ro, y = size, fill = cluster)) + 
+  geom_text(data = size_tab, aes(x = cluster_ro, y = size, label = size), check_overlap = FALSE, hjust = -0.05) + 
+  scale_fill_discrete() + 
+  ggtitle('K-Means++ Cluster Sizes') +
+  blank_theme + 
+  ylab('Users in Cluster')+
+  coord_flip()
+
+km_bar
+
+# What are the important categories for each cluster (for what categories do they have dev >1 or <-1 from norm)
+import_cat <- t(kmpp$center*((abs(kmpp$center)>sig_level)*1))
+import_cat[import_cat == 0] <- NA
+import_cat
+# Maybe find another way to visualize this later 
+
+# Hclust gap statistic calculation, note similar cutoff to k-means
+sm_hclust_gap <- clusGap(sm_samp, FUN = hcut, K.max = 25, B = 50)
+plot(sm_hclust_gap)
+
+# Fit Hclust model using k = 13, using ward.D since other methods didn't work
+sm_dist <- dist(sm_data)
+hc_sm <- hclust(sm_dist, method='ward.D')
+hc_sm_cut <- cutree(hc_sm, k = 13)
+
+# Data prep
+hc_sm_full <- data.frame(sm_data, hc = as.factor(hc_sm_cut))
+hc_sm_grouped <- hc_sm_full %>% 
+  group_by(hc) %>%
+  summarise_all(mean) %>%
+  select(-starts_with('hc')) %>%
+  t() %>% 
+  as.data.frame()
+colnames(hc_sm_grouped) <- seq(1:13)
+hc_sm_grouped$cname <- row.names(hc_sm_grouped)
+hc_sm_grouped$cname <- hc_sm_grouped$cname %>% fct_reorder(min_rank(hc_sm_grouped$cname),.desc = TRUE)
+hc_plot_data <- melt(hc_sm_grouped, id.vars = 'cname')
+
+# HC Std. Dev plot by category/cluster
+hc_dev_plot <- ggplot() +
+  geom_point(data=hc_plot_data, aes(x=cname, y=as.double(value), color = variable), size = 4, alpha = .8) +
+  labs(title = 'Hierarchical Diverging Dot Plot', subtitle = 'Normalized distribution by variable') +
+  ylab('Standard Deviations from Mean') + 
+  xlab('') + 
+  guides(color=guide_legend(title="Cluster")) + 
+  geom_hline(yintercept = sig_level, color = 'red', linetype = 'dashed') +
+  geom_hline(yintercept = -sig_level, color = 'red', linetype = 'dashed') +
+  theme_minimal() + 
+  scale_color_discrete() + 
+  coord_flip()
+
+hc_dev_plot
+
+# Visualize the cluster sizes 
+
+hc_size_tab <- as.data.table(summary(factor(hc_sm_cut))) 
+colnames(hc_size_tab) <- c('size')
+hc_size_tab$cluster <- factor(row.names(size_tab), levels = c('1','2','3','4','5','6','7','8','9','10','11','12','13'), ordered = TRUE) 
+hc_size_tab$cluster_ro <- hc_size_tab$cluster %>% fct_reorder(hc_size_tab$size)
+
+hc_bar <-
+  ggplot() + 
+  geom_col(data = hc_size_tab, aes(x = cluster_ro, y = size, fill = cluster)) + 
+  geom_text(data = hc_size_tab, aes(x = cluster_ro, y = size, label = size), check_overlap = FALSE, hjust = -0.05) + 
+  scale_fill_discrete() + 
+  ggtitle('Hierarchical Cluster Sizes') +
+  blank_theme + 
+  ylab('Users in Cluster')+
+  coord_flip()
+
+hc_bar
+
+# More data wrangling
+hc_import_cat <- hc_sm_grouped %>% select(-starts_with('cname'))
+hc_import_cat <- hc_import_cat*((abs(hc_import_cat)>sig_level)*1)
+hc_import_cat[hc_import_cat == 0] <- NA
+
+# What are the important categories for each cluster (for what categories do they have dev >1 or <-1 from norm)
+hc_import_cat
 ```
 
-## Including Plots
+Our team chose to treat the task of identifying interesting market segments for NutrientH20 as a clustering problem and attempted several different approaches within the clustering family. Before starting, however, we decided to perform a few transformations to try to make the data more useful. First, we dropped the random alphanumeric code associated with each user and created a new variable called ‘num_tweets’ equal to the sum of all other columns in the dataset. While we know that some tweets were classified as belonging to more than one category during the data collection process, this variable should still serve as a close proxy for the social media engagement of a given user. Next, we scaled down all other variables by the new ‘num_tweets’ variable, so that each column now represented the fraction of a given user’s engagement that fell within a certain category. 
 
-You can also embed plots, for example:
+After cleaning and transforming the data, we then proceeded to calculate gap-statistics for both K-means and hierarchical clustering methods in order to try to find an optimal number of groups for our data. In both cases, the gap-statistic implied the trivial selection of a single cluster which was not relevant for our use case, but there was also a flattening or slight dip of the gap-statistic curve at k=13. 
 
-```{r pressure, echo=FALSE}
-plot(pressure)
+```{r fig1, echo=FALSE}
+
+plot(sm_km_gap)
+plot(sm_hclust_gap)
+
 ```
 
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+Without having prior intuition about the expected number of market segments, we proceeded to fit both K-means++ and hierarchical clustering models to the data with 13 clusters. While the K-means++ method yielded relatively balanced clusters out-of-the-box, hierarchical clustering did not yield balanced clusters using ‘simple’, ‘complete’, ‘average’, or ‘centroid’ linkage methods (‘complete’ was the most balanced of these methods and still placed ~94% into a single cluster). To alleviate this issue, we used a linkage method known as Ward clustering that is based on minimizing the total within-cluster variance. Ward clustering yielded much more balanced clusters that were in similar in size to the K-means++ clusters.
+
+
+```{r fig2, echo=FALSE}
+
+km_bar
+hc_bar
+
+```
+
+
+In order to explore the defining characteristics of market segments, we calculated each cluster’s average standard deviation from the mean for each category. The diverging dot plots below shows the results of this process, with points outside the red-dotted lines (which are 1 standard deviation from the mean) highlighting the key characteristics of a given cluster.
+
+
+```{r fig3, echo=FALSE}
+
+km_dev_plot
+hc_dev_plot
+
+#Important km characteristics 
+import_cat
+
+#Important hc characteristics 
+hc_import_cat
+```
+
+Commentary on market segments here…
