@@ -176,7 +176,6 @@ hc_import_cat <- hc_import_cat*((abs(hc_import_cat)>sig_level)*1)
 hc_import_cat[hc_import_cat == 0] <- NA
 
 # What are the important categories for each cluster (for what categories do they have dev >1 or <-1 from norm)
-hc_import_cat
 ```
 
 Our team chose to treat the task of identifying interesting market segments for NutrientH20 as a clustering problem and attempted several different approaches within the clustering family. Before starting, however, we decided to perform a few transformations to try to make the data more useful. First, we dropped the random alphanumeric code associated with each user and created a new variable called ‘num_tweets’ equal to the sum of all other columns in the dataset. While we know that some tweets were classified as belonging to more than one category during the data collection process, this variable should still serve as a close proxy for the social media engagement of a given user. Next, we scaled down all other variables by the new ‘num_tweets’ variable, so that each column now represented the fraction of a given user’s engagement that fell within a certain category. 
@@ -216,4 +215,24 @@ import_cat
 hc_import_cat
 ```
 
-Commentary on market segments here…
+### Discussion of Clusters
+
+We have given each cluster a name that indicates their comparatively extreme characteristics.
+
+1. K-Means++ Cluster (KC) 4 (1302 obs), Hierarchical Cluster (HC) 5 (802 obs): *The Online Shoppers* chatter, share photos, and tweet about shopping more than a standard deviation more often than average. 
+2. KC 13 (1219 obs), HC 1 (1019 obs): *The Health-Conscious* tweet about personal fitness, health, and nutrition, and the outdoors more often than average.
+3. KC 5 (1008 obs), HC 2 (1048 obs): *The Suburban Parents* tweet about sports fandom, food, family, religion, parenting, and school more often than average.
+4. KC 3 (750 obs), HC 7 (759 obs): *The VSCO Girls* tweet about cooking, beauty, and fashion more than average.
+5. KC 10 (589 obs), HC 10 (612 obs): *The Sit-Com Dads* tweet about news and automotive much more than average. They also tweet about politics more than average and sports-fandom slightly more than average.
+6. KC 6 (533 obs), HC 4 (543 obs): *The Frat Boys* tweet more than average about online gaming, sports-playing, and college/university.
+7. KC 7 (527 obs), HC 6 (452 obs): *The Tech Bros* tweet more than average about travel, politics, news, and computers.
+8. KC 1 (422 obs), HC 9 (303 obs): *The College Creatives* tweet more than average about TV and film, music, small business, and college and university.
+9. KC 12 (353 obs), HC 3 (305 obs): *The Artists and Crafters* tweet more than average about TV and film, crafts, and art.
+10. KC 8 (290 obs), HC 11 (301 obs): *The High Schoolers* tweet more than average about dating, school, and fashion.
+11. KC 11 (216 obs), HC 12 (253 obs): *The NSFW Accounts* tweet adult content more than average.
+12. KC 2 (37 obs), HC 13 (49 obs): *The Spammers* tweet adult content and spam more than average.
+
+Two clusters didn't have matches between the different clustering methods.
+
+* HC 8 (1436 obs): *The Silent Plurality* has fewer tweets than average in every category.
+* KC 9 (636 obs): *The Noise-Makers* have more chatter, uncategorized tweets, and tweets about current events than average.
