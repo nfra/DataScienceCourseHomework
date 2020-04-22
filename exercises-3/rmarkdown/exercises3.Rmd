@@ -4,13 +4,664 @@ output: github_document
 ---
 
 ```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Problem 1: Predictive Model Building
+
+
+```{r p1cars, include=FALSE}
+library(mosaic)
+library(tidyverse)
+library(data.table)
+library(tree)
+library(randomForest)
+library(rpart)
+library(gbm)
+library(pdp)
+
+# unfiltered
+greenbuildingsuf = read.csv("../data/greenbuildings.csv", header=TRUE) 
+
+# get the data
+greenbuildings = read.csv("../data/greenbuildings.csv", header=TRUE) %>%
+  na.omit() %>%
+  mutate(
+    cluster = as.factor(cluster),
+    green_rating = as.factor(green_rating),
+    class = as.factor(2*class_a + 1*class_b),
+    renovated = as.factor(renovated),
+    net = as.factor(net),
+    amenities = as.factor(amenities)
+  )
+
+# Fill factor levels
+levels(greenbuildings$green_rating) = c('Non-Green','Green')
+levels(greenbuildings$class) = c('C','B','A')
+levels(greenbuildings$renovated) = c('No','Yes')
+levels(greenbuildings$net) = c('No','Yes')
+levels(greenbuildings$amenities) = c('No','Yes')
+
+exclude_vars <- c('CS_PropertyID','cluster','class_a','class_b','LEED','Energystar')
+
+gb_clean <- greenbuildings[ , !(names(greenbuildings) %in% exclude_vars)]
+
+# split into a training and testing set
+set.rseed(63)
+N = nrow(gb_clean)
+train_frac = 0.8
+N_train = floor(train_frac*N)
+N_test = N - N_train
+train_ind = sample.int(N, N_train, replace=FALSE) %>% sort
+gb_clean_train = gb_clean[train_ind,]
+gb_clean_test = gb_clean[-train_ind,]
+
+#### Basic Tree ####
+
+#fit a big tree using rpart.control
+gb_bigtree = rpart(Rent ~ ., data=gb_clean_train, method="anova",
+                 control=rpart.control(minsplit=5,cp=.00005))
+nbig = length(unique(gb_bigtree$where))
+# cat('size of big tree: ',nbig,'\n')
+
+#look at cross-validation
+# plotcp(gb_bigtree)
+
+#plot best tree
+bestcp=gb_bigtree$cptable[which.min(gb_bigtree$cptable[,"xerror"]),"CP"]
+# cat('bestcp: ',bestcp,'\n')
+gb_besttree = prune(gb_bigtree,cp=bestcp)
+nbest = length(unique(gb_besttree$where))
+# cat('size of best tree: ',nbest,'\n')
+
+yhat_gb_besttree = predict(gb_besttree, gb_clean_test)
+rmse_tree = mean((gb_clean_test$Rent - yhat_gb_besttree)^2) %>% sqrt
+rmse_tree
+
+#### Bagging ####
+
+gb_bag = randomForest(Rent ~ ., mtry=17, nTree=500, data=gb_clean_train)
+
+yhat_gb_bag = predict(gb_bag, gb_clean_test)
+rmse_bag = mean((gb_clean_test$Rent - yhat_gb_bag)^2) %>% sqrt
+rmse_bag
+
+#### Random Forest ####
+
+gb_forest = randomForest(Rent ~ ., mtry=7, nTree=500, data=gb_clean_train)
+
+yhat_gb_forest = predict(gb_forest, gb_clean_test)
+rmse_forest = mean((gb_clean_test$Rent - yhat_gb_forest)^2) %>% sqrt
+rmse_forest
+
+#### Boosting ####
+
+gb_boost = gbm(Rent ~ ., data=gb_clean_train, distribution = 'gaussian',
+             interaction.depth=4, n.trees=5000, shrinkage=.1)
+
+yhat_gb_boost = predict(gb_boost, gb_clean_test, n.trees=5000)
+rmse_boost = mean((gb_clean_test$Rent - yhat_gb_boost)^2) %>% sqrt
+rmse_boost
+
+gbm.perf(gb_boost)
+
+
+#### Performance Comparison ####
+max_rent <- max(gb_clean_test$Rent)
+min_rent <- min(gb_clean_test$Rent)
+min_max <- c(min_rent,max_rent)
+
+tree_plot <- ggplot() +
+  geom_point(aes(x=gb_clean_test$Rent, y = yhat_gb_besttree), alpha = .3, size = 2, shape = 16) + 
+  geom_line(aes(x=min_max, y=min_max), color = 'blue', size = 1) + 
+  labs(title="Out Of Sample Predicted vs. Actual Rent - Simple Tree", 
+     y="Prediction",
+     x = "Rent",
+     fill="") +
+  annotate("label", x = 25, y = 160, label = paste0('RMSE: ',as.character(round(rmse_tree,4))), color = 'red', size = 5) +
+  theme_minimal()
+
+tree_plot
+
+bag_plot <- ggplot() +
+  geom_point(aes(x=gb_clean_test$Rent, y = yhat_gb_bag), alpha = .3, size = 2, shape = 16) + 
+  geom_line(aes(x=min_max, y=min_max), color = 'blue', size = 1) + 
+  labs(title="Out Of Sample Predicted vs. Actual Rent - Bagging", 
+       y="Prediction",
+       x = "Rent",
+       fill="") +
+  annotate("label", x = 25, y = 160, label = paste0('RMSE: ',as.character(round(rmse_bag,4))), color = 'red', size = 5) +
+  theme_minimal()
+
+bag_plot
+
+forest_plot <- ggplot() +
+  geom_point(aes(x=gb_clean_test$Rent, y = yhat_gb_forest), alpha = .3, size = 2, shape = 16) + 
+  geom_line(aes(x=min_max, y=min_max), color = 'blue', size = 1) + 
+  labs(title="Out Of Sample Predicted vs. Actual Rent - Random Forest", 
+       y="Prediction",
+       x = "Rent",
+       fill="") +
+  annotate("label", x = 25, y = 160, label = paste0('RMSE: ',as.character(round(rmse_forest,4))), color = 'red', size = 5) +
+  theme_minimal()
+
+forest_plot
+
+boost_plot <- ggplot() +
+  geom_point(aes(x=gb_clean_test$Rent, y = yhat_gb_boost), alpha = .3, size = 2, shape = 16) + 
+  geom_line(aes(x=min_max, y=min_max), color = 'blue', size = 1) + 
+  labs(title="Out Of Sample Predicted vs. Actual Rent - Boosting", 
+       y="Prediction",
+       x = "Rent",
+       fill="") +
+  annotate("label", x = 25, y = 160, label = paste0('RMSE: ',as.character(round(rmse_boost,4))), color = 'red', size = 5) +
+  theme_minimal()
+
+boost_plot
+
+#### Partial Dependence ####
+
+forest_p <- partial(gb_forest, pred.var = c('green_rating'), train = gb_clean)
+forest_p$green_rating
+forest_p$yhat
+
+
+pd_plot <- ggplot() + 
+  geom_bar(mapping = aes(x=forest_p$green_rating, y=forest_p$yhat, fill = forest_p$green_rating), stat='identity') +
+  labs(title="Partial Dependence Plot - Random Forest", 
+       y="Average Predicted Rent",
+       x = "Green Rating",
+       fill="") +
+  theme_minimal() + 
+  geom_text(aes(x=forest_p$green_rating, y=forest_p$yhat+1, label = round(forest_p$yhat,2)), size = 4) +
+  scale_fill_manual(values=c("#FC6767", "#57D06B")) +
+  guides(fill=FALSE)
+
+pd_plot
+
+import_plot <- varImpPlot(gb_forest, main = 'Variable Importance Plot - Random Forest')
 
 ```
 
-## Exercise 1: Predictive pricing model for green buildings
+## Approach
 
-## Exercise 2: Crime and policing
+In our attempt to build the best predictive model possible for price, we decided to focus on tree-based approaches since they tend to perform particularly well at out-of-sample prediction. Before we could fit any models, we first needed to clean the data and select the relevant variables to utilize. Observations with any null values were dropped because they only represented a very small portion of our sample (less than 1%), and our model incorporated all available information besides cluster id, LEED status, and Energystar status. Cluster id was excluded because it was a factored variable with a very large number of levels, and we were concerned that it would only introduce noise into the model. Also, most (if not all) of the information captured by cluster id should also be captured by cluster rent, so we were comfortable leaving it out. LEED status and Energystar status were left out as we decided to focus on evaluating the overall impact of “green certified” status, instead of the specific impact of each specific certification.
 
-## Exercise 3: Wine analysis
+## Modeling & Analysis
 
-## Exercise 4: Twitter market segmentation
+After cleaning the data, we split it into a training set and a testing set so that we could evaluate out-of-sample performance for each of our models. Then we trained models based on four different tree-based methods: simple tree, bagging, random forest, and boosting. In order to evaluate the performance of each of these models, we then calculated the RMSE of each model on the testing data. The figures below show the results of the out-of-sample testing. Unsurprisingly, all of the ensemble methods (bagging, boosting, and random forest) outperformed the simple tree model, with the random forest model performing the best.
+
+```{r p1fig1, echo=FALSE}
+tree_plot
+
+bag_plot
+
+forest_plot
+
+boost_plot
+```
+
+After selecting the best predictive model, we then explored variable importance and partial dependence. The variable independence plot below shows that the cluster rent variable, representing the average rent per square-foot in a building’s local market, is by far the most important variable for accurate predictions. Variables like building size and regional electricity costs are also important, but green certification status is notably near the bottom of the list. 
+
+```{r p1fig2, echo=FALSE}
+varImpPlot(gb_forest, main = 'Variable Importance Plot - Random Forest')
+```
+
+Looking at the partial dependence plot for the green certification status variable provides further evidence that the effect of this particular variable is small. Holding all other features of the building constant, the partial dependence analysis suggests that green certification is associated with a $0.48 increase in rental income per square foot. In evaluating whether to construct a green-certified building, we would suggest that developers carefully consider whether the certification will be worthwhile in light of the relatively modest potential gains in rental income. If developers want to maximize rental income, they may want to spend their capital on other building features that are stronger predictors of rent according to our model, like market location and size.
+
+
+
+```{r p1fig3, echo=FALSE}
+
+pd_plot
+
+```
+
+
+
+# Problem 2: What Causes What?
+
+## Question 1
+
+We can't simply run the regression of "crime" on "police" to estimate the effect of the number of police on the crime rate because the selection of policing level is endogenous. That is, governmental decision-makers can and do decide how much money to spend on policing in a locality based on its crime rate.
+
+The ability to select the level of policing introduces selection bias that prevents a consistent estimate of the effect of policing on crime.
+
+## Question 2
+
+In the 2005 article "Using Terror Alert Levels to Estimate the Effect of Police on Crime", Jonathan Klick and Alexander Tabarrok were able to isolate the effect of policing on crime by identifying and examining a situation in which the number of police in a locality is changed for reasons unrelated to crime in that area. They identified just such a situation: Washington, D.C., during a heightened terrorism alert level. By law, if the Homeland Security Advisory System increases the color-coded terrorism threat advisory scale to "orange", extra police officers are placed on the National Mall and throughout the rest of Washington.
+
+The researchers then examined what happens to street crime when the number of police is increased during these periods of orange-alert. They found that the rate of things like murder, robbery, and assault decreased. Referring to the first column of the table (reproduced from the paper) below, we can see the surge of police on crime is estimated to have reduced the daily number of crimes in Washington by about 7 (not controlling for variation in METRO ridership). 
+
+
+![Table 2](../figures/ex3table2.png) 
+
+
+## Question 3
+
+The authors had to control for METRO ridership to avoid running into a problem with omitted variable bias. In order to obtain unbiased estimators in OLS regressions, the error term must be uncorrelated with the regressors (exogeneity). If an omitted variable has an effect on the outcome and is correlated with one of the regressors, exogeneity will not hold and the coefficient estimates will be biased.
+
+In this case, one can hypothesize that the METRO ridership may be correlated with high alert status and also have an effect on the crime rate. If the high alert reduces the number of tourists in Washington, it may suppress crime by diminishing the pool of possible victims. Klick and Tabarrok use Metro ridership as a measure of tourism, and control for that in the second column of the table above. The causal estimate is reduced in that regression to a decrease of about 6 in the number of crimes per day, but it is still statistically significant. 
+
+It is also worth noting that, despite the possible omitted variable bias in their first regression, Klick and Tabarrok actually argue against the idea that they have to control for Metro ridership:
+
+>"We are skeptical of the latter explanation on theoretical grounds because holding all else equal, daily crime is unlikely to vary significantly based on the number of daily visitors. The vast majority of visitors to Washington D.C. are never the victim of a crime. Since there are far more visitors than crimes it seems unlikely that the number of visitors constrains the number of crimes."
+
+## Question 4
+
+The model being estimated in the first column of the table below allows for the effect of policing to vary between District 1 (home to the city's business and political center) and the rest of Washington, while also controlling for Metro ridership. It uses heteroskedasticity-robust (or White-Huber) standard errors. The estimate from this model is that the extra policing reduces the number of daily crimes by about 2.6 in District 1 and about .6 in other districts, although the estimate for other districts is not statistically significant.
+
+![Table 4](../figures/ex3table4.png)
+
+
+# Problem 3: Clustering and PCA
+
+
+```{r p3setup, include=FALSE}
+
+library(tidyverse)
+library(ggthemes)
+library(LICORS)
+library(knitr)
+
+set.seed(484629)
+
+# read data
+# setwd("~/UT Courses/3. Spring 2019/Data Mining, Statistical Learning/Homework/DataScienceCourseHomework/exercises-3")
+wine_data = read.csv("../data/wine.csv")
+
+# separate data into inputs and outcomes
+wine_x = wine_data[,1:11]
+wine_score = wine_data[,12]
+wine_color = wine_data[,13]
+
+# standardize data
+wine_x_st = scale(wine_x)
+```
+In this exercise, we analyze data on eleven chemical properties of 6500 different bottles of *vinho verde* wine from northern Portugal. We compare principal component analysis (PCA) and K-means++ clustering to choose a method that easily distinguishes between red and white wine. We further investigate the ability of each method to sort higher quality wines from lower quality wines. We find that K-means++ is better for the application of distinguishing white wine from red while PCA may capture more information about wine quality.
+
+## PCA
+
+```{r p3pca, include=FALSE}
+# calculate principal components
+pc_wine = prcomp(wine_x_st, scale=TRUE)
+
+# add outcomes back in for graphing
+pc_wine_graph_data = as.data.frame(pc_wine$x)
+pc_wine_graph_data$score = wine_score
+pc_wine_graph_data$color = wine_color
+```
+
+Running the PCA algorithm and plotting the first two principal components, we find the figure below. It has two relatively well-defined clusters: one centered at roughly (-2.5, 1) and the other centered at roughly (1, 0).
+
+```{r p3pca_scatter, echo=FALSE}
+ggplot(data = pc_wine_graph_data) +
+  geom_point(aes(x = PC1, y = PC2), alpha = 1/5) +
+  theme_clean() +
+  theme(plot.background=element_blank())
+```
+
+In the figure below, the points have been colored according to the color of the corresponding wine. (To be clear, this information was not used in the PCA calculation.) This figure shows that primary components 1 and 2 successfully separates white wine from red.
+
+```{r p3pca_scatter_color, echo=FALSE}
+ggplot(data = pc_wine_graph_data) +
+  geom_point(aes(x = PC1, y = PC2, color = color), alpha = 1/4) +
+  theme_clean() +
+  theme(plot.background=element_blank()) +
+  scale_color_manual(values = c("#722f37", "#eccd13"))
+```
+
+Unfortunately, PCA alone gives us no algorithmic way to say which observations should belong to each cluster. That would require a clustering algorithm.
+
+In the figure below, the second and third principle components are plotted with the points now colored according to the quality score. (This information was not used in the PCA calculation either.) Obviously, this scatter plot does not have apparent clusters corresponding to each quality score.
+
+```{r p3pca_scatter_score, echo=FALSE}
+ggplot(data = pc_wine_graph_data) +
+  geom_point(aes(x = PC2, y = PC3, color = as.factor(score))) +
+  theme_clean() +
+  theme(plot.background=element_blank())
+```
+
+However, one can see in the next two box plots that the second and third principle components tend to decrease along with the quality score. (Note that the direction may change, since PCA chooses direction arbitrarily. I have set the seed to be able to replicate the same findings.)
+
+```{r p3pca_box_score_pc2, echo=FALSE}
+ggplot(data = pc_wine_graph_data) +
+  geom_boxplot(aes(x = as.factor(score), y = PC2)) +
+  xlab("Quality Score (/10)") +
+  ylab("Principal Component 2") + 
+  theme_clean() +
+  theme(plot.background=element_blank())
+```
+
+```{r p3pca_box_score_pc3, echo=FALSE}
+ggplot(data = pc_wine_graph_data) +
+  geom_boxplot(aes(x = as.factor(score), y = PC3)) +
+  xlab("Quality Score (/10)") +
+  ylab("Principal Component 3") +  
+  theme_clean() +
+  theme(plot.background=element_blank())
+```
+
+```{r p3pca_table_score, echo=FALSE}
+pca_table = pc_wine_graph_data %>%
+  group_by(score) %>%
+  summarize(mean.PC1 = mean(PC1), mean.PC2 = mean(PC2), mean.PC3 = mean(PC3))
+```
+
+We can therefore say that PCA has some capability to sort the lower quality from the higher quality wines.
+
+## K-Means++
+
+```{r p3k_meanspp_color, echo=FALSE}
+wine_cluster_color = kmeanspp(wine_x_st, k=2, nstart=50)
+
+cluster_wine_data = wine_data
+cluster_wine_data$two_clusters = wine_cluster_color$cluster
+```
+
+Now, we try running the K-means++ algorithm with K = 2, corresponding to the two colors of the wines. We can look at a "confusion matrix" where the "prediction" is not actually a prediction but an unsupervised cluster assignment. This is shown in Table 1.
+
+```{r results='asis', echo=FALSE}
+table_color = table(color = cluster_wine_data$color, 
+              cluster = cluster_wine_data$two_clusters)
+
+knitr::kable(table_color, 
+             caption = "Table 1: Cluster (horizontal) vs. color (vertical)", 
+             col.names = c("Cl 1", "Cl 2"))
+```
+
+This is really effective! The error rate is only $(24+68)/6497 = 0.014$.
+
+```{r p3k_meanspp_score, echo=FALSE}
+wine_cluster_score_3 = kmeanspp(wine_x_st, k=3, nstart=100)
+wine_cluster_score_4 = kmeanspp(wine_x_st, k=4, nstart=100)
+wine_cluster_score_5 = kmeanspp(wine_x_st, k=5, nstart=100)
+wine_cluster_score_6 = kmeanspp(wine_x_st, k=6, nstart=100)
+wine_cluster_score_7 = kmeanspp(wine_x_st, k=7, nstart=100)
+
+cluster_wine_data$three_clusters = wine_cluster_score_3$cluster
+cluster_wine_data$four_clusters = wine_cluster_score_4$cluster
+cluster_wine_data$five_clusters = wine_cluster_score_5$cluster
+cluster_wine_data$six_clusters = wine_cluster_score_6$cluster
+cluster_wine_data$seven_clusters = wine_cluster_score_7$cluster
+```
+
+If we instead try to cluster with higher K-values, we find little of interest. It's not even clear which cluster might correspond to each quality level, as shown in the violin plots below. (Note that "quality score" is not a continuous variable. The violin plot interpolates values between the integer values that the variable actually takes.) Some clusters do have higher mean values of quality score, but the distinction is definitely not clear as it was with the two groups of "red" and "white".
+
+```{r p3k_meanspp_score_violin, echo=FALSE}
+ggplot(data = cluster_wine_data) +
+  geom_violin(aes(x = as.factor(three_clusters), y = quality)) +
+  xlab("Three Clusters") +
+  ylab("Quality Score (/10)") +
+  theme_clean() +
+  theme(plot.background=element_blank())
+ggplot(data = cluster_wine_data) +
+  geom_violin(aes(x = as.factor(four_clusters), y = quality)) +
+  xlab("Four Clusters") +
+  ylab("Quality Score (/10)") +
+  theme_clean() +
+  theme(plot.background=element_blank())
+ggplot(data = cluster_wine_data) +
+  geom_violin(aes(x = as.factor(five_clusters), y = quality)) +
+  xlab("Five Clusters") +
+  ylab("Quality Score (/10)") +
+  theme_clean() +
+  theme(plot.background=element_blank())
+ggplot(data = cluster_wine_data) +
+  geom_violin(aes(x = as.factor(six_clusters), y = quality)) +
+  xlab("Six Clusters") +
+  ylab("Quality Score (/10)") +  
+  theme_clean() +
+  theme(plot.background=element_blank())
+ggplot(data = cluster_wine_data) +
+  geom_violin(aes(x = as.factor(seven_clusters), y = quality)) +
+  xlab("Seven Clusters") +
+  ylab("Quality Score (/10)") +  
+  theme_clean() +
+  theme(plot.background=element_blank())
+```
+
+## Which is better here?
+
+The decision of which is better ultimately depends on the purpose of dimensionality-reduction. Since this particular problem involves data with two very well defined groups ("red" and "white"), clustering using K-means++ seems like the intuitive choice for this data. As shown previously by the confusion matrix, it performs well at distinguishing reds from whites, but struggles sort higher quality wines from lower quality wines (PCA was slightly more promising in this regard).
+
+# Problem 4: Market Segmentation
+
+
+```{r p4code, include=FALSE}
+library(mosaic)
+library(tidyverse)
+library(data.table)
+library(LICORS)
+library(cluster)
+library(factoextra)
+library(RColorBrewer)
+
+# get the data & clean/process
+sm_data <- read.csv("../data/social_marketing.csv", header=TRUE) %>%
+  select(-c(X)) %>%
+  mutate(
+    num_tweets = rowSums(.[,])
+    ) 
+ntv <- sm_data$num_tweets
+sm_data <- sm_data / ntv 
+sm_data$num_tweets <- ntv 
+
+sm_data <- sm_data %>% scale(center=TRUE, scale=TRUE)
+
+# save scales, might use them later
+mu <- attr(sm_data,"scaled:center")
+sigma <- attr(sm_data,"scaled:scale")
+
+#set seed for reproducibility
+set.rseed(63)
+
+# take a random sample for calculating gap
+N = nrow(sm_data)
+samp_frac = 0.2
+N_samp = floor(samp_frac*N)
+samp_ind = sample.int(N, N_samp, replace=FALSE) %>% sort
+sm_samp = sm_data[samp_ind,]
+
+# K means gap statistic calculation
+sm_km_gap <- clusGap(sm_samp, FUN = kmeans, nstart = 25, K.max = 25, B = 50)
+plot(sm_km_gap)
+
+# Calculate K-means++
+kmpp <- kmeanspp(sm_data, k=13, nstart=50)
+
+# Data cleaning/manipulation 
+cname <- rownames(t(kmpp$center))
+kmpp_pre_t <- kmpp$center
+kmpp_res_t <- as.data.table(cbind(cname = cname, t(kmpp_pre_t))) %>%
+  mutate(
+    cname = as.factor(cname)
+  )
+kmpp_res_t$cname <- kmpp_res_t$cname %>% fct_reorder(min_rank(kmpp_res_t$cname),.desc = TRUE)
+plot_data <- melt(kmpp_res_t, id.vars = 'cname')
+
+# Choose a significance level (in std. devs.) for distinguising key characteristics of each cluster
+sig_level <- 1
+
+# Std. Dev plot by category/cluster
+km_dev_plot <- ggplot() +
+  geom_point(data=plot_data, aes(x=cname, y=as.double(value), color = variable), size = 4, alpha = .8) +
+  labs(title = 'K-Means++ Diverging Dot Plot', subtitle = 'Normalized distribution by variable') +
+  ylab('Standard Deviations from Mean') + 
+  xlab('') + 
+  guides(color=guide_legend(title="Cluster")) + 
+  theme_minimal() + 
+  geom_hline(yintercept = sig_level, color = 'red', linetype = 'dashed') +
+  geom_hline(yintercept = -sig_level, color = 'red', linetype = 'dashed') +
+  scale_color_discrete() + 
+  coord_flip()
+
+km_dev_plot
+
+# Visualize the cluster sizes 
+blank_theme <- theme_minimal() +
+  theme(
+    axis.title.x = element_blank(),
+    axis.title.y = element_blank(),
+    axis.text.x = element_blank(),
+    axis.text.y = element_blank(),
+    panel.border = element_blank(),
+    panel.grid=element_blank(),
+    axis.ticks = element_blank(),
+    plot.title=element_text(size=14, face="bold")
+  )
+
+size_tab <- as.data.table(kmpp$size) 
+colnames(size_tab) <- c('size')
+size_tab$cluster <- factor(row.names(size_tab), levels = c('1','2','3','4','5','6','7','8','9','10','11','12','13'), ordered = TRUE) 
+size_tab$cluster_ro <- size_tab$cluster %>% fct_reorder(size_tab$size)
+
+km_bar <-
+  ggplot() + 
+  geom_col(data = size_tab, aes(x = cluster_ro, y = size, fill = cluster)) + 
+  geom_text(data = size_tab, aes(x = cluster_ro, y = size, label = size), check_overlap = FALSE, hjust = -0.05, size = 3.5) + 
+  scale_fill_discrete() + 
+  ggtitle('K-Means++ Cluster Sizes') +
+  blank_theme + 
+  ylab('Users in Cluster')+
+  coord_flip()
+
+km_bar
+
+# What are the important categories for each cluster (for what categories do they have dev >1 or <-1 from norm)
+import_cat <- t(kmpp$center*((abs(kmpp$center)>sig_level)*1))
+import_cat[import_cat == 0] <- NA
+import_cat
+# Maybe find another way to visualize this later 
+
+# Hclust gap statistic calculation, note similar cutoff to k-means
+sm_hclust_gap <- clusGap(sm_samp, FUN = hcut, K.max = 25, B = 50)
+plot(sm_hclust_gap)
+
+# Fit Hclust model using k = 13, using ward.D since other methods didn't work
+sm_dist <- dist(sm_data)
+hc_sm <- hclust(sm_dist, method='ward.D')
+hc_sm_cut <- cutree(hc_sm, k = 13)
+
+# Data prep
+hc_sm_full <- data.frame(sm_data, hc = as.factor(hc_sm_cut))
+hc_sm_grouped <- hc_sm_full %>% 
+  group_by(hc) %>%
+  summarise_all(mean) %>%
+  select(-starts_with('hc')) %>%
+  t() %>% 
+  as.data.frame()
+colnames(hc_sm_grouped) <- seq(1:13)
+hc_sm_grouped$cname <- row.names(hc_sm_grouped)
+hc_sm_grouped$cname <- hc_sm_grouped$cname %>% fct_reorder(min_rank(hc_sm_grouped$cname),.desc = TRUE)
+hc_plot_data <- melt(hc_sm_grouped, id.vars = 'cname')
+
+# HC Std. Dev plot by category/cluster
+hc_dev_plot <- ggplot() +
+  geom_point(data=hc_plot_data, aes(x=cname, y=as.double(value), color = variable), size = 4, alpha = .8) +
+  labs(title = 'Hierarchical Diverging Dot Plot', subtitle = 'Normalized distribution by variable') +
+  ylab('Standard Deviations from Mean') + 
+  xlab('') + 
+  guides(color=guide_legend(title="Cluster")) + 
+  geom_hline(yintercept = sig_level, color = 'red', linetype = 'dashed') +
+  geom_hline(yintercept = -sig_level, color = 'red', linetype = 'dashed') +
+  theme_minimal() + 
+  scale_color_discrete() + 
+  coord_flip()
+
+hc_dev_plot
+
+# Visualize the cluster sizes 
+
+hc_size_tab <- as.data.table(summary(factor(hc_sm_cut))) 
+colnames(hc_size_tab) <- c('size')
+hc_size_tab$cluster <- factor(row.names(size_tab), levels = c('1','2','3','4','5','6','7','8','9','10','11','12','13'), ordered = TRUE) 
+hc_size_tab$cluster_ro <- hc_size_tab$cluster %>% fct_reorder(hc_size_tab$size)
+
+hc_bar <-
+  ggplot() + 
+  geom_col(data = hc_size_tab, aes(x = cluster_ro, y = size, fill = cluster)) + 
+  geom_text(data = hc_size_tab, aes(x = cluster_ro, y = size, label = size), check_overlap = FALSE, hjust = -0.05, size = 3.5) + 
+  scale_fill_discrete() + 
+  ggtitle('Hierarchical Cluster Sizes') +
+  blank_theme + 
+  ylab('Users in Cluster')+
+  coord_flip()
+
+hc_bar
+
+# More data wrangling
+hc_import_cat <- hc_sm_grouped %>% select(-starts_with('cname'))
+hc_import_cat <- hc_import_cat*((abs(hc_import_cat)>sig_level)*1)
+hc_import_cat[hc_import_cat == 0] <- NA
+
+# What are the important categories for each cluster (for what categories do they have dev >1 or <-1 from norm)
+```
+
+## Approach
+
+Our team chose to treat the task of identifying interesting market segments for NutrientH20 as a clustering problem and attempted several different approaches within the clustering family. Before starting, however, we decided to perform a few transformations to try to make the data more useful. First, we dropped the random alphanumeric code associated with each user and created a new variable called ‘num_tweets’ equal to the sum of all other columns in the dataset. While we know that some tweets were classified as belonging to more than one category during the data collection process, this variable should still serve as a reasonable proxy for the social media engagement of a given user. Next, we scaled down all other variables by the new ‘num_tweets’ variable, so that each column now represented the fraction of a given user’s engagement that fell within a certain category. 
+
+## Modeling
+
+After cleaning and transforming the data, we then proceeded to calculate gap-statistics for both K-means and hierarchical clustering methods in order to try to find an optimal number of groups for our data. In both cases, the gap-statistic implied the trivial selection of a single cluster which was not relevant for our use case, but there was also a flattening or slight dip of the gap-statistic curve at k=13. 
+
+```{r p4fig1, echo=FALSE}
+
+plot(sm_km_gap, main = 'K-means++ Gap-Statistic Plot')
+plot(sm_hclust_gap, main = 'Hierarchical Gap-Statistic Plot')
+
+```
+
+Without having prior intuition about the expected number of market segments, we proceeded to fit both K-means++ and hierarchical clustering models to the data with 13 clusters. While the K-means++ method yielded relatively balanced clusters out-of-the-box, hierarchical clustering did not yield balanced clusters using ‘simple’, ‘complete’, ‘average’, or ‘centroid’ linkage methods (‘complete’ was the most balanced of these methods and still placed ~94% into a single cluster). To alleviate this issue, we used a linkage method known as Ward clustering that is based on minimizing the total within-cluster variance. Ward clustering yielded much more balanced clusters that were in similar in size to the K-means++ clusters.
+
+
+```{r p4fig2, echo=FALSE}
+
+km_bar
+hc_bar
+
+```
+
+
+In order to explore the defining characteristics of market segments, we calculated each cluster’s average standard deviation from the mean for each category. The diverging dot plots below shows the results of this process, with points outside the red-dotted lines (which are 1 standard deviation from the mean) highlighting the key characteristics of a given cluster.
+
+
+```{r p4fig3, echo=FALSE}
+
+km_dev_plot
+hc_dev_plot
+
+# Important km characteristics 
+# import_cat
+
+# Important hc characteristics 
+# hc_import_cat
+```
+
+## Discussion of Clusters
+
+We have given each cluster a name that indicates their identifying characteristics.
+
+1. K-Means++ Cluster (KC) 4 (1302 obs), Hierarchical Cluster (HC) 5 (802 obs): *The Online Shoppers* chatter, share photos, and tweet about shopping more than a standard deviation more often than average. 
+2. KC 13 (1219 obs), HC 1 (1019 obs): *The Health-Conscious* tweet about personal fitness, health, and nutrition, and the outdoors more often than average.
+3. KC 5 (1008 obs), HC 2 (1048 obs): *The Suburban Parents* tweet about sports fandom, food, family, religion, parenting, and school more often than average.
+4. KC 3 (750 obs), HC 7 (759 obs): *The VSCO Girls* tweet about cooking, beauty, and fashion more than average.
+5. KC 10 (589 obs), HC 10 (612 obs): *The Sit-Com Dads* tweet about news and automotive much more than average. They also tweet about politics more than average and sports-fandom slightly more than average.
+6. KC 6 (533 obs), HC 4 (543 obs): *The Frat Boys* tweet more than average about online gaming, sports-playing, and college/university.
+7. KC 7 (527 obs), HC 6 (452 obs): *The Tech Bros* tweet more than average about travel, politics, news, and computers.
+8. KC 1 (422 obs), HC 9 (303 obs): *The College Creatives* tweet more than average about TV and film, music, small business, and college and university.
+9. KC 12 (353 obs), HC 3 (305 obs): *The Artists and Crafters* tweet more than average about TV and film, crafts, and art.
+10. KC 8 (290 obs), HC 11 (301 obs): *The High Schoolers* tweet more than average about dating, school, and fashion.
+11. KC 11 (216 obs), HC 12 (253 obs): *The NSFW Accounts* tweet adult content more than average.
+12. KC 2 (37 obs), HC 13 (49 obs): *The Spammers* tweet adult content and spam more than average.
+
+Two clusters didn't have matches between the different clustering methods.
+
+* HC 8 (1436 obs): *The Silent Plurality* has fewer tweets than average in every category.
+* KC 9 (636 obs): *The Noise-Makers* have more chatter, uncategorized tweets, and tweets about current events than average.
+
+## Conclusions
+
+Our analysis provides valuable information to NutrientH20 about the different market segments that appear in their twitter audience. We can also be confident about the robustness of our results, as multiple methods identified largely similar groups. NutrientH20 should be able to use this information to come up with targeted consumer engagement and advertising campaigns. For example, while they may have already been aware of *The Health-Conscious* segment of their audience (because of their brand name), they might not have realized that *The Suburban Parents* and *The Sit-Com Dads* combine to form an even larger market segment. Thus, NutrientH20 could shift some of their advertising budget to focus on reaching this particular demographic, perhaps by running ads through partnerships with sports teams/events. They could also boost engagement with *The Frat Boys* and *The College Creatives* by sponsoring events on college campuses, or host a photo contest to engage with *The Online Shoppers*. Regardless of the specific demographic that NutrientH20 chooses to focus on, these groupings should give them a good idea of how to create targeted content and boost consumer engagement. 
+
