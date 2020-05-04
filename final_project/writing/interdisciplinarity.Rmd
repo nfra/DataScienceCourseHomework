@@ -1,0 +1,64 @@
+---
+title: "The Selfish Rewards of Multidisciplinarity"
+author: "Nathan Franz"
+output: github_document
+---
+
+## Abstract
+
+## Introduction
+
+Questions:
+
+Are papers that cite outside their own fields more successful than those that don't?
+"Fields that don't share a parent field?"
+
+Are authors that publish in multiple fields more successful than those that don't?
+
+
+Why this question?
+
+Low hanging fruit
+The university 
+
+The syncretic act of 
+
+"Carving nature at its joints" as Plato put it in the *Phaedrus*
+
+Mental models
+
+
+
+
+## Methods
+
+The scientometric methods
+
+For this project I used the [Microsoft Academic Knowledge Graph](http://ma-graph.org/), a data set featuring over 200,000,000 papers published in over 48,000 journals by over 250,000,000 authors affiliated with over 25,000 institutions. The data is encoded as a Resource Description Framework (RDF) graph. 
+
+I used the software packages RStudio for and Gephi for visualization of the networks. I used a Gephi plug-in called "Semantic Web Import" for importing the RDF data with an implementation of SPARQL Protocol and RDF Query Language (SPARQL).
+
+
+
+### Defining "success"
+
+This is a hard problem.
+
+Take a random sample of papers in each field that has a parent field but has no 
+
+## Results
+
+## Conclusion
+
+This work could be extended with more refined measures of paper success than the crude number of citations. (Such as betweenness or Page rank.) It could also, following in the work of Heinze & Bauer (2007), 
+
+## Citations
+
+Heinze, T., & Bauer, G. (2007). Characterizing creative scientists in nano-S&T: Productivity, multidisciplinarity, and network brokerage in a longitudinal perspective, Scientometrics, 70(3), 811-830. Retrieved May 4, 2020, from https://akjournals.com/view/journals/11192/70/3/article-p811.xml
+
+## Appendix
+
+### Data Retrieval Process
+
+
+
