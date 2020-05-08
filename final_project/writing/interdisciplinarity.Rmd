@@ -27,10 +27,33 @@ The syncretic act of
 
 Mental models
 
+### Why is this area important?
+This project is concerned with scientometrics -- the measurement and analysis of academic publications.
+
+### What is the question?
+
+### Why is this question important?
+
+### What other work has been done on this question?
+
+### What data is being used to answer this question?
+
+### Defining "success"
+
+This is a hard problem.
+
+Take a random sample of papers in each field that has a parent field but has no 
+
 
 
 
 ## Methods
+
+### What methods were used to collect the data?
+
+### What methods were used to analyze the data?
+
+### What methods were used to present the data?
 
 The scientometric methods
 
@@ -40,15 +63,17 @@ I used the software packages RStudio for and Gephi for visualization of the netw
 
 
 
-### Defining "success"
 
-This is a hard problem.
-
-Take a random sample of papers in each field that has a parent field but has no 
 
 ## Results
 
+### 
+
 ## Conclusion
+
+### Restatement of Work
+
+### More Work to Be Done
 
 This work could be extended with more refined measures of paper success than the crude number of citations. (Such as betweenness or Page rank.) It could also, following in the work of Heinze & Bauer (2007), 
 
@@ -58,7 +83,174 @@ Heinze, T., & Bauer, G. (2007). Characterizing creative scientists in nano-S&T: 
 
 ## Appendix
 
-### Data Retrieval Process
+### Journal Data R Script
+
+```
+library(tidyverse)
+library(stringi)
+
+# read data
+journals_scimago = read.csv("./data/journals_scimago.csv")
+journals_ma_graph = read.csv("./data/journals_ma_graph.csv")
+journals_ma_graph_issn = read.csv("./data/journals_ma_graph_issn.csv")
+
+# remove dashes in ISSN for matching
+journals_ma_graph_issn[['issn_no_dash']] = str_remove(journals_ma_graph_issn[['issn']], "-")
+
+# add ISSNs to larger ma-graph list for those journals that have them
+journals_ma_graph$issn = journals_ma_graph_issn[match(journals_ma_graph$name, journals_ma_graph_issn$name),"issn_no_dash"]
+
+# clean up broken Unicode in names from ma-graph
+journals_ma_graph$name = str_replace_all(journals_ma_graph$name, "&amp;", "and")
+journals_ma_graph$name = str_replace_all(journals_ma_graph$name, "&#039;", "'")
+journals_ma_graph$name = str_replace_all(journals_ma_graph$name, "&#x00E9;", "e")
+journals_ma_graph$name = str_replace_all(journals_ma_graph$name, "&#x2013;", "-")
+
+# remove diacritics in names from ma-graph
+journals_ma_graph$name = stri_encode(stri_trans_general(journals_ma_graph$name, id = "Latin-ASCII"), to = "UTF8")
+
+# remove punctuation in names from both datasets
+journals_ma_graph$name = str_remove_all(journals_ma_graph$name, "[^[:alnum:]]")
+journals_scimagov$name = str_remove_all(journals_ma_graph$name, "[^[:alnum:]]")
+
+# match between datasets by ISSN and name
+journals_ma_graph$issn_match = pmatch(journals_ma_graph$issn, journals_scimago$Issn)
+journals_ma_graph$name_match = match(str_remove_all(stri_trans_general(journals_ma_graph$name, id = "lower"), "[^[:alnum:]]"), 
+                                     str_remove_all(stri_trans_general(journals_scimago$Title, id = "lower"), "[^[:alnum:]]")
+                                     )
+
+# make final match, privileging issn match
+journals_ma_graph$match = journals_ma_graph$issn_match
+journals_ma_graph[is.na(journals_ma_graph$match),'match'] = journals_ma_graph[is.na(journals_ma_graph$match),'name_match']
+
+# make merged dataset
+journals_both_ma_graph = subset(journals_ma_graph, !is.na(match))
+journals_both_scimago = journals_scimago[journals_both_ma_graph$match,]
+journals_both = cbind(journals_both_ma_graph, journals_both_scimago)
+
+# export merged dataset
+journals_for_python = journals_both[,c('journal','Categories')]
+
+journals_for_python$journal = stri_encode(journals_for_python$journal, to = "UTF8")
+journals_for_python$Categories = stri_encode(journals_for_python$Categories, to = "UTF8")
+
+write.csv(journals_for_python, "./data/journals_merged.csv")
+
+
+paste(str_replace_all(economics_journals$journal, "http://ma-graph.org/entity/", ":"), collapse = " ")
+
+economics_papers = read.csv("./data/econ_papers.csv")
+
+```
+
+### SPARQL Query Python Script
+
+This takes approximately 20 hours to finish.
+
+```
+import pandas
+from SPARQLWrapper import SPARQLWrapper, JSON
+import json
+import time
+
+
+journal_data = pandas.read_csv("C:/Users/Nathan/Documents/UT Courses/3. Spring 2019/Data Mining, Statistical Learning/Homework/DataScienceCourseHomework/final_project/data/journals_merged.csv", encoding = "utf-8")
+
+# define SPARQL query
+# this query returns all papers published in English between 2000 and 2015 
+#   in all journals in the same field (defined by scimago journal data), 
+#   their journals, their citation count, the papers they cite, 
+#   and the journals in which the papers they cite were published
+url = 'http://ma-graph.org/sparql' # set SPARQL end point URL
+query_first_half = """
+PREFIX : <http://ma-graph.org/entity/>
+PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
+SELECT ?paper ?journal ?citationCount ?citedPaper ?citedJournal
+WHERE{ 
+VALUES ?journal {"""
+query_second_half =   """}
+?paper <http://www.w3.org/1999/02/22-rdf-syntax-ns#type><http://ma-graph.org/class/Paper>;
+<http://ma-graph.org/property/appearsInJournal>?journal;
+<http://ma-graph.org/property/citationCount>?citationCount;
+<http://purl.org/dc/terms/language>"en"^^xsd:language;
+<http://prismstandard.org/namespaces/1.2/basic/publicationDate>?pubDate;
+<http://purl.org/spar/cito/cites>?citedPaper.
+?citedPaper<http://ma-graph.org/property/appearsInJournal>?citedJournal.
+FILTER(?pubDate>"1999-12-31"^^xsd:date)
+FILTER(?pubDate<"2016-01-01"^^xsd:date)
+}
+"""
+
+field_dictionary = dict() #initialize dictionary
+
+# assemble dictionary of all fields
+for row_number in range(len(journal_data)):
+    row = journal_data.iloc[row_number]
+    journal_id = row[["journal"]][0]
+    journal_fields = row[["Categories"]][0]
+    
+    # clean up journal fields for parsing
+    journal_fields = str.replace(journal_fields," (Q1)","")
+    journal_fields = str.replace(journal_fields," (Q2)","")
+    journal_fields = str.replace(journal_fields," (Q3)","")
+    journal_fields = str.replace(journal_fields," (Q4)","")
+    
+
+    # add dictionary entries
+    if field_dictionary.get(journal_fields) is None: #initialize
+        field_dictionary[journal_fields] = list()
+    field_dictionary[journal_fields].append(journal_id)
+    print(row_number)
+
+
+# initialize global vars for loop 
+finished = list() # in case of interruption, be sure to update this!
+index = 0
+
+# perform query for all fields and save results
+for field, set_of_journals in field_dictionary.items():
+    index += 1 # increment index
+    print(index, "out of 6140") # print progress statement
+    if (field not in finished): # in case of resumption, avoid repeating queries
+        journals = '' # initialize journals string
+        # build journals string for query
+        for journal in set_of_journals: 
+            journal_abbr = str.replace(journal,"http://ma-graph.org/entity/",":")
+            journals = journals + journal_abbr + " "
+        
+        journal_values = journals # unnecessary variable change, I guess?
+        query = query_first_half + journal_values + query_second_half # assemble query
+        
+        try:
+            sparql = SPARQLWrapper(url) # set SPARQL end point
+            sparql.setQuery(query) # set SPARQL query
+            sparql.setReturnFormat(JSON) # set JSON return format (CSV seemed not to work)
+            results = sparql.query().convert() # perform query
+       
+        # in case attempt to reach site fails, wait a minute and try again
+        except: 
+            print("exception here")
+            time.sleep(60)
+            sparql = SPARQLWrapper(url)
+            sparql.setQuery(query)
+            sparql.setReturnFormat(JSON)
+            results = sparql.query().convert()
+        
+        # construct filename - Windows has filename limit of 260 chars
+        field_short = str.replace(field,"(miscellaneous)","(misc)")
+        field_short = str.replace(field_short,"and ","")
+        field_short = str.replace(field_short," ","")
+        field_short = field_short[:247]  
+        filepath = "E:/data/" + field_short + ".txt"
+        
+        # export results to file
+        with open(filepath, 'w') as outfile:
+            json.dump(results, outfile)
+
+        finished.append(field) # keep track of finished queries
+```
+
+### Centile Summary R Script
 
 
 
